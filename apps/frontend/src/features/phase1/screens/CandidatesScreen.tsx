@@ -34,7 +34,6 @@ export const CandidatesScreen = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔁 toggle filter
   const toggleFilter = (key: string, value: string) => {
     setFilters((prev) => ({
       ...prev,
@@ -42,7 +41,7 @@ export const CandidatesScreen = () => {
     }));
   };
 
-  // 🚀 FETCH
+  // ✅ CLEAN useEffect
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -80,7 +79,7 @@ export const CandidatesScreen = () => {
     fetchCandidates();
   }, [
     setup.startDate,
-    setup.endDate, // ✅ IMPORTANT FIX
+    setup.endDate,
     detectedProfession,
     filters,
   ]);

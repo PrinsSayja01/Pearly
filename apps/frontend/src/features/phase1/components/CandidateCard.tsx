@@ -1,18 +1,17 @@
-// src/features/phase1/components/CandidateCard.tsx
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, Clock, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+
 export interface Candidate {
   id: number;
   name: string;
   role: string;
   rating: number;
   location: string;
-  available: string;
-  rate: number;
+  availability: string[];
+  skill: number;
+  match_score?: number;
 }
 
 interface Props {
@@ -22,7 +21,8 @@ interface Props {
 }
 
 export const CandidateCard = ({ worker, selected, onSelect }: Props) => {
-  const isAvailableNow = /on site|today|now/i.test(worker.available || "");
+
+  const availableText = worker.availability?.[0] || "Not available";
 
   return (
     <button
@@ -68,22 +68,23 @@ export const CandidateCard = ({ worker, selected, onSelect }: Props) => {
                 {worker.location}
               </span>
 
-              <Badge
-                className={cn(
-                  isAvailableNow
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-600"
-                )}
-              >
+              <Badge className="bg-gray-100 text-gray-700">
                 <Clock className="h-3 w-3 mr-1" />
-                {worker.available}
+                {availableText}
               </Badge>
             </div>
+
+            {/* 🧠 MATCH SCORE (VERY IMPORTANT) */}
+            {worker.match_score !== undefined && (
+              <div className="text-[10px] mt-1 text-primary font-medium">
+                Match: {worker.match_score}
+              </div>
+            )}
           </div>
 
-          {/* Rate */}
-          <div className="text-right text-sm font-semibold">
-            €{worker.rate}/h
+          {/* Skill */}
+          <div className="text-right text-xs text-muted-foreground">
+            Skill {worker.skill}/5
           </div>
 
         </CardContent>
