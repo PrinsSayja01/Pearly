@@ -41,7 +41,7 @@ export const CandidatesScreen = () => {
     }));
   };
 
-  // ✅ CLEAN useEffect
+  // ✅ FIXED API CALL (IMPORTANT)
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -50,15 +50,15 @@ export const CandidatesScreen = () => {
 
       try {
         console.log("📡 FETCH:", {
-          startDate: setup.startDate,
-          endDate: setup.endDate,
-          filters,
+          date: setup.startDate,
+          role: detectedProfession || filters.role,
+          language: filters.language,
+          location: filters.location,
         });
 
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
-            startDate: setup.startDate,
-            endDate: setup.endDate,
+            date: setup.startDate, // ✅ backend expects THIS
             role: detectedProfession || filters.role || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
@@ -77,15 +77,10 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [
-    setup.startDate,
-    setup.endDate,
-    detectedProfession,
-    filters,
-  ]);
+  }, [setup.startDate, detectedProfession, filters]);
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 max-w-md mx-auto">
 
       <StepHeader
         step={3}
@@ -191,7 +186,7 @@ export const CandidatesScreen = () => {
       )}
 
       {/* CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t max-w-md mx-auto">
         <Button
           className="w-full h-12"
           disabled={!selectedCandidateId}
