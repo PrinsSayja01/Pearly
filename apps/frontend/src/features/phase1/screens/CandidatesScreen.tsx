@@ -34,6 +34,7 @@ export const CandidatesScreen = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // 🔁 toggle filter
   const toggleFilter = (key: string, value: string) => {
     setFilters((prev) => ({
       ...prev,
@@ -41,6 +42,7 @@ export const CandidatesScreen = () => {
     }));
   };
 
+  // 🚀 FETCH
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -48,18 +50,27 @@ export const CandidatesScreen = () => {
       setLoading(true);
 
       try {
+        console.log("📡 FETCH:", {
+          startDate: setup.startDate,
+          endDate: setup.endDate,
+          filters,
+        });
+
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
-            date: setup.startDate,
-            role: filters.role || detectedProfession || undefined,
+            startDate: setup.startDate,
+            endDate: setup.endDate,
+            role: detectedProfession || filters.role || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
           },
         });
 
+        console.log("✅ RESPONSE:", res.data);
+
         setCandidates(res.data?.candidates || []);
       } catch (err: any) {
-        console.error("API error:", err?.message);
+        console.error("❌ API error:", err?.message);
         setCandidates([]);
       } finally {
         setLoading(false);
@@ -67,7 +78,12 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, filters, detectedProfession]);
+  }, [
+    setup.startDate,
+    setup.endDate, // ✅ IMPORTANT FIX
+    detectedProfession,
+    filters,
+  ]);
 
   return (
     <div className="space-y-4 pb-24">
@@ -76,11 +92,11 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Choose specialist"
-        subtitle="Simple selection based on availability"
+        subtitle="Based on availability and filters"
         onBack={() => setStep("setup")}
       />
 
-      {/* ROLE FILTER (AUTO + OVERRIDE) */}
+      {/* ROLE */}
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">Role</div>
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -98,9 +114,11 @@ export const CandidatesScreen = () => {
         </div>
       </div>
 
-      {/* LANGUAGE FILTER */}
+      {/* LANGUAGE */}
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">Language (optional)</div>
+        <div className="text-xs text-muted-foreground">
+          Language (optional)
+        </div>
         <div className="flex gap-2">
           {languages.map((l) => (
             <Button
@@ -116,7 +134,7 @@ export const CandidatesScreen = () => {
         </div>
       </div>
 
-      {/* LOCATION FILTER */}
+      {/* LOCATION */}
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">Location</div>
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -138,7 +156,7 @@ export const CandidatesScreen = () => {
       {loading && (
         <Card>
           <CardContent className="p-5 text-center text-sm">
-            Finding specialists...
+            Finding best specialists...
           </CardContent>
         </Card>
       )}
@@ -168,7 +186,7 @@ export const CandidatesScreen = () => {
       {!loading && candidates.length === 0 && (
         <Card>
           <CardContent className="p-5 text-center text-sm">
-            No specialists found for selected filters
+            No specialists found
           </CardContent>
         </Card>
       )}
