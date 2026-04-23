@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, SlidersHorizontal, Sparkles } from "lucide-react";
 
 import { usePhase1Store } from "../store";
-
+import { CandidateCard } from "../components/CandidateCard"; // ✅ FIX
 import { StepHeader } from "../components/StepHeader";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -33,7 +33,6 @@ export const CandidatesScreen = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 FETCH
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -64,7 +63,6 @@ export const CandidatesScreen = () => {
 
   return (
     <div className="space-y-4 pb-24">
-
       <StepHeader
         step={3}
         total={6}
@@ -86,36 +84,35 @@ export const CandidatesScreen = () => {
         </Button>
       </div>
 
-      {/* 🧠 AI MATCHING LOADER */}
+      {/* LOADING */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-6">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1.2 }}
-          >
-            <Sparkles className="h-6 w-6 text-primary" />
-          </motion.div>
-          <p className="text-sm mt-2 text-muted-foreground">
-            Finding best specialists...
-          </p>
-        </div>
-      )}
+        <>
+          <div className="flex flex-col items-center py-6">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1.2 }}
+            >
+              <Sparkles className="h-6 w-6 text-primary" />
+            </motion.div>
+            <p className="text-sm mt-2 text-muted-foreground">
+              Finding best specialists...
+            </p>
+          </div>
 
-      {/* 💎 SKELETON LOADING */}
-      {loading && (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4 animate-pulse flex gap-3">
-                <div className="h-10 w-10 bg-muted rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-muted rounded w-1/2" />
-                  <div className="h-3 bg-muted rounded w-1/3" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4 animate-pulse flex gap-3">
+                  <div className="h-10 w-10 bg-muted rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-muted rounded w-1/2" />
+                    <div className="h-3 bg-muted rounded w-1/3" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {/* LIST */}
@@ -147,7 +144,7 @@ export const CandidatesScreen = () => {
         </Card>
       )}
 
-      {/* 📱 FULL SCREEN FILTER SHEET */}
+      {/* FILTER SHEET */}
       {showFilters && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
           <motion.div
