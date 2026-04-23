@@ -1,73 +1,218 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { motion } from "framer-motion";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Star, MapPin, Clock, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { Candidate } from "../store";
+import { ArrowRight, SlidersHorizontal, Sparkles } from "lucide-react";
 
-interface Props {
-  worker: Candidate;
-  selected?: boolean;
-  onSelect?: () => void;
-  compact?: boolean;
-}
+import { usePhase1Store } from "../store";
+import { CandidateCard } from "../components/CandidateCard";
+import { StepHeader } from "../components/StepHeader";
 
-export const CandidateCard = ({ worker, selected, onSelect, compact }: Props) => {
-  const isAvailableNow = /on site|today|now/i.test(worker.available);
+const API_URL = import.meta.env.VITE_API_URL;
+
+export const CandidatesScreen = () => {
+  const {
+    selectedCandidateId,
+    selectCandidate,
+    setSelectedCandidate,
+    setStep,
+    setup,
+    detectedProfession,
+  } = usePhase1Store();
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    role: "",
+    language: "",
+    location: "",
+  });
+
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // 🔥 FETCH
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      if (!setup.startDate) return;
+
+      setLoading(true);
+
+      try {
+        const res = await axios.get(`${API_URL}/candidates`, {
+          params: {
+            date: setup.startDate,
+            role: detectedProfession || filters.role || undefined,
+            language: filters.language || undefined,
+            location: filters.location || undefined,
+          },
+        });
+
+        setCandidates(res.data?.candidates || []);
+      } catch (err: any) {
+        console.error("API error:", err?.message);
+        setCandidates([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCandidates();
+  }, [setup.startDate, detectedProfession, filters]);
+
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "w-full text-left transition-smooth",
-        "active:scale-[0.99]",
+    <div className="space-y-4 pb-24">
+
+      <StepHeader
+        step={3}
+        total={6}
+        title="Available specialists"
+        subtitle="Pick the best match for your job"
+        onBack={() => setStep("setup")}
+      />
+
+      {/* FILTER BUTTON */}
+      <div className="flex items-center">
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto h-9"
+          onClick={() => setShowFilters(true)}
+        >
+          <SlidersHorizontal className="h-4 w-4 mr-1" />
+          Filters
+        </Button>
+      </div>
+
+      {/* 🧠 AI MATCHING LOADER */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-6">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.2 }}
+          >
+            <Sparkles className="h-6 w-6 text-primary" />
+          </motion.div>
+          <p className="text-sm mt-2 text-muted-foreground">
+            Finding best specialists...
+          </p>
+        </div>
       )}
-    >
-      <Card
-        className={cn(
-          "border rounded-2xl overflow-hidden transition-smooth",
-          selected
-            ? "border-primary/60 bg-gradient-pearl-card shadow-elegant"
-            : "border-border/60 bg-gradient-pearl-card shadow-soft hover:shadow-elegant",
-        )}
-      >
-        <CardContent className={cn("p-4 flex items-center gap-3", compact && "p-3")}>
-          <div className="h-12 w-12 shrink-0 rounded-full bg-gradient-iridescent flex items-center justify-center text-primary-foreground font-bold">
-            {worker.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="font-semibold truncate">{worker.name}</div>
-              {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+
+      {/* 💎 SKELETON LOADING */}
+      {loading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4 animate-pulse flex gap-3">
+                <div className="h-10 w-10 bg-muted rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                  <div className="h-3 bg-muted rounded w-1/3" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* LIST */}
+      {!loading && candidates.length > 0 && (
+        <div className="space-y-2">
+          {candidates.map((w) => (
+            <div
+              key={w.id}
+              onClick={() => {
+                selectCandidate(String(w.id));
+                setSelectedCandidate(w);
+              }}
+            >
+              <CandidateCard
+                worker={w}
+                selected={String(selectedCandidateId) === String(w.id)}
+              />
             </div>
-            <div className="text-xs text-muted-foreground">{worker.trade}</div>
-            <div className="flex items-center gap-3 mt-1.5 text-xs">
-              <span className="inline-flex items-center gap-1">
-                <Star className="h-3 w-3 fill-warning text-warning" />
-                {worker.rating}
-              </span>
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {worker.distance}
-              </span>
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "h-5 px-1.5 text-[10px] gap-1",
-                  isAvailableNow
-                    ? "bg-success/15 text-success border border-success/30"
-                    : "bg-muted text-muted-foreground",
-                )}
+          ))}
+        </div>
+      )}
+
+      {/* EMPTY */}
+      {!loading && candidates.length === 0 && (
+        <Card>
+          <CardContent className="p-5 text-center text-sm">
+            No specialists available
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 📱 FULL SCREEN FILTER SHEET */}
+      {showFilters && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            className="w-full bg-white rounded-t-3xl p-4 space-y-3"
+          >
+            <div className="text-center text-sm font-medium">
+              Filters
+            </div>
+
+            <Input
+              placeholder="Role"
+              value={filters.role}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, role: e.target.value }))
+              }
+            />
+
+            <Input
+              placeholder="Language"
+              value={filters.language}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, language: e.target.value }))
+              }
+            />
+
+            <Input
+              placeholder="Location"
+              value={filters.location}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, location: e.target.value }))
+              }
+            />
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowFilters(false)}
               >
-                <Clock className="h-3 w-3" />
-                {worker.available}
-              </Badge>
+                Cancel
+              </Button>
+
+              <Button
+                className="flex-1"
+                onClick={() => setShowFilters(false)}
+              >
+                Apply
+              </Button>
             </div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Rate</div>
-            <div className="font-semibold text-sm">${worker.rate}/h</div>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
+        <Button
+          className="w-full h-12"
+          disabled={!selectedCandidateId}
+          onClick={() => setStep("confirm")}
+        >
+          Continue <ArrowRight className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 };

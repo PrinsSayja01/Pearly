@@ -2,15 +2,18 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, SlidersHorizontal } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { usePhase1Store } from "../store";
 import { CandidateCard } from "../components/CandidateCard";
 import { StepHeader } from "../components/StepHeader";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+const roles = ["plumber", "electrician", "technician"];
+const languages = ["de", "en"];
+const locations = ["munich", "berlin", "hamburg"];
 
 export const CandidatesScreen = () => {
   const {
@@ -22,7 +25,6 @@ export const CandidatesScreen = () => {
     detectedProfession,
   } = usePhase1Store();
 
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     role: "",
     language: "",
@@ -31,6 +33,13 @@ export const CandidatesScreen = () => {
 
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const toggleFilter = (key: string, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: prev[key as keyof typeof prev] === value ? "" : value,
+    }));
+  };
 
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -42,17 +51,13 @@ export const CandidatesScreen = () => {
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
             date: setup.startDate,
-            role: detectedProfession || filters.role || undefined,
+            role: filters.role || detectedProfession || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
           },
         });
 
-        if (res.data?.candidates) {
-          setCandidates(res.data.candidates);
-        } else {
-          setCandidates([]);
-        }
+        setCandidates(res.data?.candidates || []);
       } catch (err: any) {
         console.error("API error:", err?.message);
         setCandidates([]);
@@ -62,66 +67,78 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, detectedProfession]);
+  }, [setup.startDate, filters, detectedProfession]);
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-24">
 
       <StepHeader
         step={3}
         total={6}
-        title="Available specialists"
-        subtitle="Select one to continue"
+        title="Choose specialist"
+        subtitle="Simple selection based on availability"
         onBack={() => setStep("setup")}
       />
 
-      {/* FILTER BUTTON */}
-      <div className="flex items-center">
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto h-9"
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          <SlidersHorizontal className="h-4 w-4 mr-1" />
-          Filters
-        </Button>
+      {/* ROLE FILTER (AUTO + OVERRIDE) */}
+      <div className="space-y-1">
+        <div className="text-xs text-muted-foreground">Role</div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {roles.map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant={filters.role === r ? "default" : "outline"}
+              className="rounded-full whitespace-nowrap"
+              onClick={() => toggleFilter("role", r)}
+            >
+              {r}
+            </Button>
+          ))}
+        </div>
       </div>
 
-      {/* FILTER PANEL */}
-      {showFilters && (
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            <Input
-              placeholder="Role"
-              value={filters.role}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, role: e.target.value }))
-              }
-            />
-            <Input
-              placeholder="Language"
-              value={filters.language}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, language: e.target.value }))
-              }
-            />
-            <Input
-              placeholder="Location"
-              value={filters.location}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, location: e.target.value }))
-              }
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* LANGUAGE FILTER */}
+      <div className="space-y-1">
+        <div className="text-xs text-muted-foreground">Language (optional)</div>
+        <div className="flex gap-2">
+          {languages.map((l) => (
+            <Button
+              key={l}
+              size="sm"
+              variant={filters.language === l ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => toggleFilter("language", l)}
+            >
+              {l.toUpperCase()}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* LOCATION FILTER */}
+      <div className="space-y-1">
+        <div className="text-xs text-muted-foreground">Location</div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {locations.map((loc) => (
+            <Button
+              key={loc}
+              size="sm"
+              variant={filters.location === loc ? "default" : "outline"}
+              className="rounded-full whitespace-nowrap"
+              onClick={() => toggleFilter("location", loc)}
+            >
+              {loc}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {/* LOADING */}
       {loading && (
         <Card>
           <CardContent className="p-5 text-center text-sm">
-            Loading specialists...
+            Finding specialists...
           </CardContent>
         </Card>
       )}
@@ -151,7 +168,7 @@ export const CandidatesScreen = () => {
       {!loading && candidates.length === 0 && (
         <Card>
           <CardContent className="p-5 text-center text-sm">
-            No specialists available
+            No specialists found for selected filters
           </CardContent>
         </Card>
       )}
@@ -163,7 +180,7 @@ export const CandidatesScreen = () => {
           disabled={!selectedCandidateId}
           onClick={() => setStep("confirm")}
         >
-          Select specialist <ArrowRight className="h-4 w-4 ml-1" />
+          Continue <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
     </div>

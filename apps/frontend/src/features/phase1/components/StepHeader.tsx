@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef } from "react";
+import { motion } from "framer-motion";
 
 interface Props {
   step: number;
@@ -10,54 +11,72 @@ interface Props {
   onBack?: () => void;
 }
 
-export const StepHeader = ({ step, total, title, subtitle, onBack }: Props) => {
-  const clickedRef = useRef(false); // 🔥 prevent accidental double trigger
+export const StepHeader = ({
+  step,
+  total,
+  title,
+  subtitle,
+  onBack,
+}: Props) => {
+  const clickedRef = useRef(false);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+
+      {/* TOP BAR */}
       <div className="flex items-center justify-between">
         {onBack ? (
           <Button
             variant="ghost"
             size="sm"
-            className="-ml-2 h-8 px-2"
+            className="-ml-2 h-9 px-2"
             onClick={() => {
               if (clickedRef.current) return;
               clickedRef.current = true;
 
-              console.log("⬅️ BACK CLICK");
               onBack();
 
-              // reset after small delay
               setTimeout(() => {
                 clickedRef.current = false;
               }, 300);
             }}
           >
-            <ArrowLeft className="h-4 w-4" /> Back
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
           </Button>
         ) : (
           <div />
         )}
 
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Step {step} / {total}
+        <div className="text-[11px] text-muted-foreground">
+          {step} / {total}
         </div>
       </div>
 
+      {/* PROGRESS BAR */}
       <div className="flex gap-1">
         {Array.from({ length: total }).map((_, i) => (
-          <div
+          <motion.div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-smooth ${
-              i < step ? "bg-gradient-primary" : "bg-muted"
-            }`}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: i * 0.05 }}
+            className={cn(
+              "h-1 flex-1 rounded-full origin-left",
+              i < step
+                ? "bg-gradient-to-r from-purple-400 to-blue-400"
+                : "bg-muted"
+            )}
           />
         ))}
       </div>
 
+      {/* TITLE */}
       <div>
-        <h1 className="font-display text-2xl">{title}</h1>
+        <h1 className="text-xl font-semibold leading-tight">
+          {title}
+        </h1>
+
         {subtitle && (
           <p className="text-sm text-muted-foreground mt-1">
             {subtitle}

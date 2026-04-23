@@ -15,70 +15,81 @@ export const SetupScreen = () => {
     new Date(setup.endDate) >= new Date(setup.startDate);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 pb-24">
+
       <StepHeader
         step={2}
-        total={5}
+        total={6}
         title="When and where?"
-        subtitle="Required to find available specialists."
-        onBack={() => {
-          console.log("⬅️ BACK TO INPUT");
-          setStep("input");
-        }}
+        subtitle="Tell us your availability"
+        onBack={() => setStep("input")}
       />
 
-      <div className="space-y-4">
+      {/* DATE SECTION */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2 text-sm">
+          <CalendarRange className="h-4 w-4 text-primary" />
+          Select dates
+        </Label>
 
-        <div>
-          <Label className="flex items-center gap-2 mb-1.5">
-            <CalendarRange className="h-4 w-4 text-primary" />
-            Date range
-          </Label>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="date"
-              value={setup.startDate || ""}
-              onChange={(e) =>
-                setSetup({ startDate: e.target.value })
-              }
-            />
-
-            <Input
-              type="date"
-              value={setup.endDate || ""}
-              onChange={(e) =>
-                setSetup({ endDate: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label className="flex items-center gap-2 mb-1.5">
-            <MapPin className="h-4 w-4 text-primary" />
-            Location
-          </Label>
+        <div className="space-y-2">
+          <Input
+            type="date"
+            value={setup.startDate || ""}
+            onChange={(e) =>
+              setSetup({ startDate: e.target.value })
+            }
+            className="h-12 text-base"
+          />
 
           <Input
-            value={setup.location || ""}
+            type="date"
+            value={setup.endDate || ""}
             onChange={(e) =>
-              setSetup({ location: e.target.value })
+              setSetup({ endDate: e.target.value })
             }
+            className="h-12 text-base"
           />
         </div>
 
+        {/* VALIDATION */}
+        {setup.startDate &&
+          setup.endDate &&
+          new Date(setup.endDate) < new Date(setup.startDate) && (
+            <p className="text-xs text-red-500">
+              End date must be after start date
+            </p>
+          )}
       </div>
 
-      <Button
-        disabled={!ready}
-        onClick={() => {
-          console.log("➡️ GO TO CANDIDATES");
-          setStep("candidates");
-        }}
-      >
-        Find specialists <ArrowRight />
-      </Button>
+      {/* LOCATION */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2 text-sm">
+          <MapPin className="h-4 w-4 text-primary" />
+          Location
+        </Label>
+
+        <Input
+          placeholder="Enter city or address"
+          value={setup.location || ""}
+          onChange={(e) =>
+            setSetup({ location: e.target.value })
+          }
+          className="h-12 text-base"
+        />
+      </div>
+
+      {/* CTA (BOTTOM FIXED) */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
+        <Button
+          className="w-full h-12"
+          disabled={!ready}
+          onClick={() => setStep("candidates")}
+        >
+          Find specialists
+          <ArrowRight className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
