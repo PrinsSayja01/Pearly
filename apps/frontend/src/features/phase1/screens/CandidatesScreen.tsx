@@ -10,6 +10,8 @@ import { usePhase1Store } from "../store";
 import { CandidateCard } from "../components/CandidateCard";
 import { StepHeader } from "../components/StepHeader";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export const CandidatesScreen = () => {
   const {
     selectedCandidateId,
@@ -30,43 +32,29 @@ export const CandidatesScreen = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ CORRECT API CALL (INSIDE ASYNC)
   useEffect(() => {
     const fetchCandidates = async () => {
-      if (!setup.startDate) {
-        console.warn("⚠️ No start date");
-        return;
-      }
+      if (!setup.startDate) return;
 
       setLoading(true);
 
       try {
-        console.log("📡 API CALL →", setup.startDate);
+        const res = await axios.get(`${API_URL}/candidates`, {
+          params: {
+            date: setup.startDate,
+            role: detectedProfession || filters.role || undefined,
+            language: filters.language || undefined,
+            location: filters.location || undefined,
+          },
+        });
 
-        const res = await axios.get(
-          "http://127.0.0.1:8002/candidates",
-          {
-            params: {
-              date: setup.startDate,
-              role: detectedProfession || filters.role || undefined,
-              language: filters.language || undefined,
-              location: filters.location || undefined,
-            },
-          }
-        );
-
-        console.log("✅ API RESPONSE:", res.data);
-
-        if (Array.isArray(res.data)) {
-          setCandidates(res.data);
-        } else if (res.data?.candidates) {
+        if (res.data?.candidates) {
           setCandidates(res.data.candidates);
         } else {
           setCandidates([]);
         }
-
       } catch (err: any) {
-        console.error("❌ API error:", err?.message);
+        console.error("API error:", err?.message);
         setCandidates([]);
       } finally {
         setLoading(false);
@@ -74,10 +62,10 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, detectedProfession]); // ✅ important deps
+  }, [setup.startDate, detectedProfession]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 pb-20">
 
       <StepHeader
         step={3}
@@ -88,14 +76,15 @@ export const CandidatesScreen = () => {
       />
 
       {/* FILTER BUTTON */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center">
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto h-8"
+          className="ml-auto h-9"
           onClick={() => setShowFilters((v) => !v)}
         >
-          <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
+          <SlidersHorizontal className="h-4 w-4 mr-1" />
+          Filters
         </Button>
       </div>
 
@@ -131,7 +120,7 @@ export const CandidatesScreen = () => {
       {/* LOADING */}
       {loading && (
         <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+          <CardContent className="p-5 text-center text-sm">
             Loading specialists...
           </CardContent>
         </Card>
@@ -144,8 +133,6 @@ export const CandidatesScreen = () => {
             <div
               key={w.id}
               onClick={() => {
-                console.log("✅ SELECT:", w);
-
                 selectCandidate(String(w.id));
                 setSelectedCandidate(w);
               }}
@@ -163,31 +150,22 @@ export const CandidatesScreen = () => {
       {/* EMPTY */}
       {!loading && candidates.length === 0 && (
         <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+          <CardContent className="p-5 text-center text-sm">
             No specialists available
           </CardContent>
         </Card>
       )}
 
       {/* CTA */}
-      <div className="sticky bottom-3 pt-2">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
-          className="w-full h-12 bg-gradient-primary hover:opacity-90 shadow-elegant"
+          className="w-full h-12"
           disabled={!selectedCandidateId}
-          onClick={() => {
-            if (!selectedCandidateId) {
-              alert("Please select a specialist");
-              return;
-            }
-
-            console.log("➡️ GO TO CONFIRM:", selectedCandidateId);
-            setStep("confirm");
-          }}
+          onClick={() => setStep("confirm")}
         >
-          Select specialist <ArrowRight className="h-4 w-4" />
+          Select specialist <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
-
     </div>
   );
 };

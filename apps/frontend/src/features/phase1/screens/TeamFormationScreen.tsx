@@ -28,6 +28,7 @@ export const TeamFormationScreen = () => {
 
   // 🔥 lead from real API
   const lead = selectedCandidate;
+  
 
   // ⚠️ TEMP: mock teammates (you will replace with API later)
   const others = workers.filter(
