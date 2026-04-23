@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, SlidersHorizontal, Sparkles } from "lucide-react";
 
 import { usePhase1Store } from "../store";
-import { CandidateCard } from "../components/CandidateCard";
+
 import { StepHeader } from "../components/StepHeader";
 
 const API_URL = import.meta.env.VITE_API_URL;
