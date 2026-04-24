@@ -17,53 +17,42 @@ export const TeamFormationScreen = () => {
     setStep,
     candidates,
     setup,
-    detectedProfession,
   } = usePhase1Store();
 
   const [thinking, setThinking] = useState(true);
   const autoSelectedRef = useRef(false);
 
   if (!selectedCandidate) {
-    return (
-      <div className="text-center text-sm text-muted-foreground">
-        No lead selected
-      </div>
-    );
+    return <div className="text-center text-sm">No lead selected</div>;
   }
 
   const lead = selectedCandidate;
 
-  // 🧠 SMART SCORE ENGINE
-  const scoredCandidates = useMemo(() => {
+  // 🧠 AI SCORING
+  const scored = useMemo(() => {
     return (candidates || [])
       .filter((w) => String(w.id) !== String(lead.id))
       .map((w: any) => {
         let score = 0;
         let reasons: string[] = [];
 
-        // ROLE BALANCE (avoid same role overload)
+        // role diversity
         if (w.role !== lead.role) {
           score += 2;
           reasons.push("role balance");
         }
 
-        // LANGUAGE MATCH
-        if (w.languages?.includes("en")) {
-          score += 1;
-          reasons.push("language match");
-        }
-
-        // LOCATION MATCH
+        // location
         if (setup?.location && w.location?.includes(setup.location)) {
           score += 1;
           reasons.push("nearby");
         }
 
-        // SKILL
+        // skill
         score += w.skill * 0.5;
         if (w.skill >= 4) reasons.push("high skill");
 
-        // RATING
+        // rating
         score += w.rating * 0.3;
         if (w.rating >= 4.5) reasons.push("top rated");
 
@@ -76,31 +65,27 @@ export const TeamFormationScreen = () => {
       .sort((a, b) => b.ai_score - a.ai_score);
   }, [candidates, lead, setup]);
 
-  // 🎯 AI SELECT TOP 2 (SMART)
-  const suggested = useMemo(() => scoredCandidates.slice(0, 2), [scoredCandidates]);
+  // 🎯 AI TOP PICKS
+  const aiTopIds = useMemo(
+    () => scored.slice(0, 2).map((c) => c.id),
+    [scored]
+  );
 
-  // 🤖 AI THINKING SIMULATION
+  // 🤖 AI THINKING
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setThinking(false);
-    }, 1200); // delay for wow effect
-
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setThinking(false), 1000);
+    return () => clearTimeout(t);
   }, []);
 
-  // 🔥 AUTO SELECT ONCE
+  // 🔥 AUTO SELECT (ONLY ONCE)
   useEffect(() => {
-    if (autoSelectedRef.current) return;
+    if (autoSelectedRef.current || thinking) return;
 
-    if (!thinking && suggested.length && teamMemberIds.length === 0) {
-      suggested.forEach((m) => toggleTeamMember(m.id));
+    if (teamMemberIds.length === 0) {
+      aiTopIds.forEach((id) => toggleTeamMember(id));
       autoSelectedRef.current = true;
     }
-  }, [thinking, suggested, teamMemberIds]);
-
-  const remaining = scoredCandidates.filter(
-    (w) => !suggested.some((s) => s.id === w.id)
-  );
+  }, [thinking, aiTopIds]);
 
   return (
     <div className="space-y-5 pb-28">
@@ -139,51 +124,39 @@ export const TeamFormationScreen = () => {
           </motion.div>
 
           <p className="text-sm mt-2 text-muted-foreground">
-            AI is building your best team...
+            AI is building your team...
           </p>
         </div>
       )}
 
-      {/* 🤖 AI RESULT */}
-      {!thinking && suggested.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-primary font-medium">
-            <Sparkles className="h-3 w-3" />
-            AI Suggested Team
-          </div>
-
-          {suggested.map((w) => (
-            <div key={w.id}>
-              <CandidateCard
-                worker={w}
-                selected={teamMemberIds.includes(w.id)}
-                onSelect={() => toggleTeamMember(w.id)}
-              />
-
-              {/* 🎯 EXPLAINABLE AI */}
-              <div className="text-[11px] text-muted-foreground px-1 mt-1">
-                Why selected: {w.reasons.join(", ")} (score {w.ai_score})
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ✋ MANUAL CONTROL */}
+      {/* 📋 FULL LIST (IMPORTANT FIX) */}
       {!thinking && (
-        <div className="space-y-2">
+        <div className="space-y-3">
+
           <div className="text-xs text-muted-foreground">
-            Adjust team (tap to add/remove)
+            Tap to add/remove team members
           </div>
 
-          {remaining.map((w) => (
-            <CandidateCard
-              key={w.id}
-              worker={w}
-              selected={teamMemberIds.includes(w.id)}
-              onSelect={() => toggleTeamMember(w.id)}
-            />
-          ))}
+          {scored.map((w) => {
+            const isAI = aiTopIds.includes(w.id);
+
+            return (
+              <div key={w.id}>
+                <CandidateCard
+                  worker={w}
+                  selected={teamMemberIds.includes(w.id)}
+                  onSelect={() => toggleTeamMember(w.id)}
+                />
+
+                {/* 🤖 AI LABEL */}
+                {isAI && (
+                  <div className="text-[11px] text-primary px-1 mt-1">
+                    AI suggestion • {w.reasons.join(", ")} (score {w.ai_score})
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
