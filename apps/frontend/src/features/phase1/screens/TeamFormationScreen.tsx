@@ -65,16 +65,14 @@ export const TeamFormationScreen = () => {
     );
   }, [candidates]);
 
-  // 🎯 AI SUGGESTED (top 2)
   const suggested = useMemo(() => sorted.slice(0, 2), [sorted]);
 
-  // 🧠 MANUAL LIST (exclude suggested)
   const manualList = useMemo(() => {
     const suggestedIds = suggested.map((s) => s.id);
     return sorted.filter((w) => !suggestedIds.includes(w.id));
   }, [sorted, suggested]);
 
-  // ⚡ AUTO SELECT ONCE
+  // ⚡ AUTO SELECT (ONLY ONCE)
   useEffect(() => {
     if (!autoSelectedRef.current && suggested.length > 0) {
       suggested.forEach((m) => toggleTeamMember(m.id));
@@ -90,9 +88,15 @@ export const TeamFormationScreen = () => {
     if (w.rating >= 4.5) reasons.push("top rated");
     if (w.languages?.includes("en")) reasons.push("language match");
     if (w.location === lead.location) reasons.push("same area");
-    if (w.availability?.length > 0) reasons.push("available");
 
     return reasons.slice(0, 3);
+  };
+
+  // ✅ 🔥 FIX: SAFE TOGGLE HANDLER
+  const handleToggle = (id: number) => {
+    console.log("👆 TOGGLE:", id);
+
+    toggleTeamMember(id);
   };
 
   return (
@@ -120,10 +124,9 @@ export const TeamFormationScreen = () => {
         </CardContent>
       </Card>
 
-      {/* 🤖 AI SECTION */}
+      {/* 🤖 AI SUGGESTED */}
       {suggested.length > 0 && (
         <div className="space-y-3">
-
           <div className="flex items-center gap-2 text-xs text-primary">
             <Sparkles className="h-4 w-4" />
             AI Suggested Team
@@ -132,12 +135,16 @@ export const TeamFormationScreen = () => {
           {suggested.map((w) => (
             <div key={w.id} className="space-y-1">
 
-              <CandidateCard
-                worker={w}
-                selected={teamMemberIds.includes(w.id)}
-                onSelect={() => toggleTeamMember(w.id)}
-                compact
-              />
+              <div
+                onClick={() => handleToggle(w.id)}
+                className="cursor-pointer active:scale-[0.98]"
+              >
+                <CandidateCard
+                  worker={w}
+                  selected={teamMemberIds.includes(w.id)}
+                  compact
+                />
+              </div>
 
               <div className="text-[11px] text-muted-foreground pl-2">
                 Why selected: {getReasons(w).join(", ")}
@@ -145,11 +152,10 @@ export const TeamFormationScreen = () => {
 
             </div>
           ))}
-
         </div>
       )}
 
-      {/* ✏️ MANUAL SECTION */}
+      {/* ✏️ MANUAL */}
       <div className="space-y-3">
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -167,15 +173,21 @@ export const TeamFormationScreen = () => {
 
         {!loading && manualList.length > 0 && (
           <div className="space-y-2">
+
             {manualList.map((w) => (
-              <CandidateCard
+              <div
                 key={w.id}
-                worker={w}
-                selected={teamMemberIds.includes(w.id)}
-                onSelect={() => toggleTeamMember(w.id)}
-                compact
-              />
+                onClick={() => handleToggle(w.id)}
+                className="cursor-pointer active:scale-[0.98]"
+              >
+                <CandidateCard
+                  worker={w}
+                  selected={teamMemberIds.includes(w.id)}
+                  compact
+                />
+              </div>
             ))}
+
           </div>
         )}
 
