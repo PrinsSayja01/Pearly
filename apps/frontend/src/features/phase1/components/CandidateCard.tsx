@@ -1,94 +1,102 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Star, MapPin, Clock, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Star } from "lucide-react";
 
-export interface Candidate {
+type Candidate = {
   id: number;
   name: string;
   role: string;
-  rating: number;
+  languages: string[];
   location: string;
-  availability: string[];
+  rating: number;
   skill: number;
   match_score?: number;
-}
+  match_reasons?: string[];
+};
 
-interface Props {
+export const CandidateCard = ({
+  worker,
+  selected,
+}: {
   worker: Candidate;
   selected?: boolean;
-  onSelect?: () => void;
-}
+}) => {
+  const score = worker.match_score || 0;
 
-export const CandidateCard = ({ worker, selected, onSelect }: Props) => {
+  // 🔥 MATCH LEVEL
+  const getMatchLevel = () => {
+    if (score >= 7) return { label: "Top Match", color: "bg-green-100 text-green-700" };
+    if (score >= 5) return { label: "Good Match", color: "bg-blue-100 text-blue-700" };
+    return { label: "Basic Match", color: "bg-gray-100 text-gray-600" };
+  };
 
-  const availableText = worker.availability?.[0] || "Not available";
+  const match = getMatchLevel();
 
   return (
-    <button
-      onClick={onSelect}
-      className="w-full text-left active:scale-[0.98] transition"
+    <Card
+      className={`rounded-2xl border transition-all cursor-pointer ${
+        selected
+          ? "border-primary shadow-md scale-[1.01]"
+          : "hover:shadow-sm"
+      }`}
     >
-      <Card
-        className={cn(
-          "rounded-2xl border transition",
-          selected
-            ? "border-primary bg-primary/5"
-            : "border-border hover:shadow-md"
-        )}
-      >
-        <CardContent className="p-4 flex items-center gap-3">
+      <CardContent className="p-4 space-y-3">
 
-          {/* Avatar */}
-          <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
-            {worker.name?.slice(0, 1)}
-          </div>
+        {/* HEADER */}
+        <div className="flex items-start justify-between">
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold truncate">
-                {worker.name}
-              </span>
-              {selected && <Check className="h-4 w-4 text-primary" />}
+          <div>
+            <div className="font-semibold text-base">
+              {worker.name}
             </div>
-
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground capitalize">
               {worker.role}
             </div>
-
-            <div className="flex items-center gap-3 mt-1 text-xs">
-              <span className="flex items-center gap-1">
-                <Star className="h-3 w-3" />
-                {worker.rating}
-              </span>
-
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {worker.location}
-              </span>
-
-              <Badge className="bg-gray-100 text-gray-700">
-                <Clock className="h-3 w-3 mr-1" />
-                {availableText}
-              </Badge>
-            </div>
-
-            {/* 🧠 MATCH SCORE (VERY IMPORTANT) */}
-            {worker.match_score !== undefined && (
-              <div className="text-[10px] mt-1 text-primary font-medium">
-                Match: {worker.match_score}
-              </div>
-            )}
           </div>
 
-          {/* Skill */}
-          <div className="text-right text-xs text-muted-foreground">
-            Skill {worker.skill}/5
+          {/* MATCH BADGE */}
+          <div
+            className={`text-[10px] px-2 py-1 rounded-full font-medium ${match.color}`}
+          >
+            {match.label}
           </div>
+        </div>
 
-        </CardContent>
-      </Card>
-    </button>
+        {/* INFO ROW */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+
+          <span>{worker.location}</span>
+
+          <span className="flex items-center gap-1">
+            <Star className="h-3 w-3 fill-current" />
+            {worker.rating}
+          </span>
+        </div>
+
+        {/* LANGUAGES */}
+        <div className="flex gap-2 flex-wrap">
+          {worker.languages.map((lang) => (
+            <span
+              key={lang}
+              className="text-[10px] px-2 py-0.5 rounded-full bg-muted"
+            >
+              {lang.toUpperCase()}
+            </span>
+          ))}
+        </div>
+
+        {/* MATCH REASONS */}
+        {worker.match_reasons && worker.match_reasons.length > 0 && (
+          <div className="text-[11px] text-muted-foreground">
+            Match: {worker.match_reasons.join(", ")}
+          </div>
+        )}
+
+        {/* SCORE (optional debug but useful now) */}
+        <div className="text-[10px] text-right text-muted-foreground">
+          Score: {score}
+        </div>
+
+      </CardContent>
+    </Card>
   );
 };
