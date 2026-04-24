@@ -65,10 +65,16 @@ export const TeamFormationScreen = () => {
     );
   }, [candidates]);
 
-  // 🎯 TOP AI
+  // 🎯 AI SUGGESTED (top 2)
   const suggested = useMemo(() => sorted.slice(0, 2), [sorted]);
 
-  // ⚡ AUTO SELECT (ONCE)
+  // 🧠 MANUAL LIST (exclude suggested)
+  const manualList = useMemo(() => {
+    const suggestedIds = suggested.map((s) => s.id);
+    return sorted.filter((w) => !suggestedIds.includes(w.id));
+  }, [sorted, suggested]);
+
+  // ⚡ AUTO SELECT ONCE
   useEffect(() => {
     if (!autoSelectedRef.current && suggested.length > 0) {
       suggested.forEach((m) => toggleTeamMember(m.id));
@@ -76,7 +82,7 @@ export const TeamFormationScreen = () => {
     }
   }, [suggested]);
 
-  // 🧠 EXPLAIN AI
+  // 🧠 WHY SELECTED
   const getReasons = (w: any) => {
     const reasons = [];
 
@@ -86,7 +92,7 @@ export const TeamFormationScreen = () => {
     if (w.location === lead.location) reasons.push("same area");
     if (w.availability?.length > 0) reasons.push("available");
 
-    return reasons.slice(0, 3); // keep clean UI
+    return reasons.slice(0, 3);
   };
 
   return (
@@ -100,7 +106,7 @@ export const TeamFormationScreen = () => {
         onBack={() => setStep("confirm")}
       />
 
-      {/* 👑 LEAD */}
+      {/* LEAD */}
       <Card className="bg-primary/5 border-primary/20 rounded-2xl">
         <CardContent className="p-4 flex items-center gap-3">
           <Users className="h-5 w-5 text-primary" />
@@ -114,7 +120,7 @@ export const TeamFormationScreen = () => {
         </CardContent>
       </Card>
 
-      {/* 🤖 AI SUGGESTIONS */}
+      {/* 🤖 AI SECTION */}
       {suggested.length > 0 && (
         <div className="space-y-3">
 
@@ -133,7 +139,6 @@ export const TeamFormationScreen = () => {
                 compact
               />
 
-              {/* 🧠 WHY SELECTED */}
               <div className="text-[11px] text-muted-foreground pl-2">
                 Why selected: {getReasons(w).join(", ")}
               </div>
@@ -144,12 +149,12 @@ export const TeamFormationScreen = () => {
         </div>
       )}
 
-      {/* ✏️ MANUAL */}
+      {/* ✏️ MANUAL SECTION */}
       <div className="space-y-3">
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <UserPlus className="h-3 w-3" />
-          Adjust team
+          Adjust team (manual)
         </div>
 
         {loading && (
@@ -160,9 +165,9 @@ export const TeamFormationScreen = () => {
           </Card>
         )}
 
-        {!loading && sorted.length > 0 && (
+        {!loading && manualList.length > 0 && (
           <div className="space-y-2">
-            {sorted.map((w) => (
+            {manualList.map((w) => (
               <CandidateCard
                 key={w.id}
                 worker={w}
@@ -176,7 +181,7 @@ export const TeamFormationScreen = () => {
 
       </div>
 
-      {/* 📱 CTA */}
+      {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t space-y-2">
 
         <Button
