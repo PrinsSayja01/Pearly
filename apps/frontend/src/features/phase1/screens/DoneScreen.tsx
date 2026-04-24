@@ -2,32 +2,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2 } from "lucide-react";
 
-import { workers } from "@/data/mock";
 import { usePhase1Store } from "../store";
 
 export const DoneScreen = () => {
   const {
-    selectedCandidateId,
+    selectedCandidate,
     teamMemberIds,
+    selectedTeamMembers, // ✅ IMPORTANT (you must store this)
     detectedProfession,
     reset,
   } = usePhase1Store();
 
-  const lead = workers.find((w) => w.id === selectedCandidateId);
-  const team = workers.filter((w) => teamMemberIds.includes(w.id));
+  const lead = selectedCandidate;
+
+  const team = selectedTeamMembers || [];
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 animate-fade-in pb-10">
 
-      <Card className="border-success/30 bg-success/5">
+      {/* ✅ SUCCESS CARD */}
+      <Card className="border-green-300 bg-green-50 rounded-2xl">
         <CardContent className="p-6 text-center space-y-3">
 
-          <div className="h-14 w-14 rounded-full bg-success text-success-foreground flex items-center justify-center mx-auto shadow-glow">
+          <div className="h-14 w-14 rounded-full bg-green-500 text-white flex items-center justify-center mx-auto shadow-lg">
             <CheckCircle2 className="h-7 w-7" />
           </div>
 
           <div>
-            <h2 className="font-display text-2xl">
+            <h2 className="text-xl font-semibold">
               Project created
             </h2>
 
@@ -43,37 +45,45 @@ export const DoneScreen = () => {
         </CardContent>
       </Card>
 
+      {/* ✅ TEAM LIST */}
       {team.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Team
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 space-y-3">
+
+            <div className="text-xs text-muted-foreground uppercase">
+              Team Members
             </div>
 
+            {/* LEAD */}
             <div className="text-sm font-medium">
               {lead?.name} (Lead)
             </div>
 
-            {team.map((w) => (
-              <div key={w.id} className="text-sm text-muted-foreground">
-                {w.name} — {w.trade}
+            {/* MEMBERS */}
+            {team.map((w: any) => (
+              <div
+                key={w.id}
+                className="text-sm text-muted-foreground flex justify-between"
+              >
+                <span>{w.name}</span>
+                <span className="text-xs">{w.role}</span>
               </div>
             ))}
+
           </CardContent>
         </Card>
       )}
 
-      <div className="flex gap-2">
-        <Button
-          className="w-full h-12 bg-gradient-primary hover:opacity-90"
-          onClick={() => {
-            console.log("🔄 Reset flow");
-            reset();
-          }}
-        >
-          Start new project
-        </Button>
-      </div>
+      {/* CTA */}
+      <Button
+        className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-purple-500 text-white"
+        onClick={() => {
+          console.log("🔄 Reset flow");
+          reset();
+        }}
+      >
+        Start new project
+      </Button>
 
     </div>
   );
