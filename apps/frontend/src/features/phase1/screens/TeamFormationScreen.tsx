@@ -22,7 +22,7 @@ export const TeamFormationScreen = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const autoSelectedRef = useRef(false); // ⚡ prevent re-auto-select
+  const autoSelectedRef = useRef(false);
 
   if (!selectedCandidate) {
     return (
@@ -36,7 +36,7 @@ export const TeamFormationScreen = () => {
 
   // 🔥 FETCH
   useEffect(() => {
-    const fetchCandidates = async () => {
+    const fetch = async () => {
       setLoading(true);
       try {
         const res = await axios.get(`${API_URL}/candidates`);
@@ -48,33 +48,46 @@ export const TeamFormationScreen = () => {
 
         setCandidates(filtered);
       } catch (err: any) {
-        console.error("❌ Team fetch error:", err?.message);
+        console.error("❌ error:", err?.message);
         setCandidates([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCandidates();
+    fetch();
   }, [lead.id]);
 
-  // 🧠 AI SORT
+  // 🧠 SORT
   const sorted = useMemo(() => {
     return [...candidates].sort(
       (a, b) => (b.match_score || 0) - (a.match_score || 0)
     );
   }, [candidates]);
 
-  // 🎯 AI SUGGESTION
+  // 🎯 TOP AI
   const suggested = useMemo(() => sorted.slice(0, 2), [sorted]);
 
-  // ⚡ AUTO SELECT (ONLY ONCE)
+  // ⚡ AUTO SELECT (ONCE)
   useEffect(() => {
     if (!autoSelectedRef.current && suggested.length > 0) {
       suggested.forEach((m) => toggleTeamMember(m.id));
       autoSelectedRef.current = true;
     }
   }, [suggested]);
+
+  // 🧠 EXPLAIN AI
+  const getReasons = (w: any) => {
+    const reasons = [];
+
+    if (w.skill >= 4) reasons.push("high skill");
+    if (w.rating >= 4.5) reasons.push("top rated");
+    if (w.languages?.includes("en")) reasons.push("language match");
+    if (w.location === lead.location) reasons.push("same area");
+    if (w.availability?.length > 0) reasons.push("available");
+
+    return reasons.slice(0, 3); // keep clean UI
+  };
 
   return (
     <div className="space-y-5 pb-28">
@@ -83,12 +96,12 @@ export const TeamFormationScreen = () => {
         step={5}
         total={6}
         title="Build your team"
-        subtitle="AI suggests, you decide"
+        subtitle="AI suggests, you control"
         onBack={() => setStep("confirm")}
       />
 
       {/* 👑 LEAD */}
-      <Card className="rounded-2xl border-primary/20 bg-primary/5">
+      <Card className="bg-primary/5 border-primary/20 rounded-2xl">
         <CardContent className="p-4 flex items-center gap-3">
           <Users className="h-5 w-5 text-primary" />
           <div>
@@ -101,48 +114,52 @@ export const TeamFormationScreen = () => {
         </CardContent>
       </Card>
 
-      {/* 🤖 AI SUGGESTION BLOCK */}
+      {/* 🤖 AI SUGGESTIONS */}
       {suggested.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
 
           <div className="flex items-center gap-2 text-xs text-primary">
             <Sparkles className="h-4 w-4" />
             AI Suggested Team
           </div>
 
-          <div className="space-y-2">
-            {suggested.map((w) => (
+          {suggested.map((w) => (
+            <div key={w.id} className="space-y-1">
+
               <CandidateCard
-                key={w.id}
                 worker={w}
                 selected={teamMemberIds.includes(w.id)}
                 onSelect={() => toggleTeamMember(w.id)}
                 compact
               />
-            ))}
-          </div>
+
+              {/* 🧠 WHY SELECTED */}
+              <div className="text-[11px] text-muted-foreground pl-2">
+                Why selected: {getReasons(w).join(", ")}
+              </div>
+
+            </div>
+          ))}
 
         </div>
       )}
 
-      {/* ✏️ MANUAL SELECTION */}
-      <div className="space-y-2">
+      {/* ✏️ MANUAL */}
+      <div className="space-y-3">
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <UserPlus className="h-3 w-3" />
-          Adjust team (optional)
+          Adjust team
         </div>
 
-        {/* LOADING */}
         {loading && (
-          <Card className="rounded-xl">
+          <Card>
             <CardContent className="p-4 text-center text-sm">
-              Finding best matches...
+              Finding matches...
             </CardContent>
           </Card>
         )}
 
-        {/* LIST */}
         {!loading && sorted.length > 0 && (
           <div className="space-y-2">
             {sorted.map((w) => (
@@ -157,18 +174,9 @@ export const TeamFormationScreen = () => {
           </div>
         )}
 
-        {/* EMPTY */}
-        {!loading && sorted.length === 0 && (
-          <Card>
-            <CardContent className="p-4 text-center text-sm text-muted-foreground">
-              No candidates available
-            </CardContent>
-          </Card>
-        )}
-
       </div>
 
-      {/* 📱 MOBILE CTA */}
+      {/* 📱 CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t space-y-2">
 
         <Button
