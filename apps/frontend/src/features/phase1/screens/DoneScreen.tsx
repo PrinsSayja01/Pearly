@@ -8,19 +8,30 @@ export const DoneScreen = () => {
   const {
     selectedCandidate,
     teamMemberIds,
-    selectedTeamMembers, // ✅ IMPORTANT (you must store this)
+    selectedTeamMembers,
     detectedProfession,
     reset,
   } = usePhase1Store();
 
-  const lead = selectedCandidate;
+  // ✅ SAFE FALLBACK (fix blank issue)
+  const lead = selectedCandidate ?? {
+    name: "Specialist",
+    role: "worker",
+  };
 
-  const team = selectedTeamMembers || [];
+  const team = selectedTeamMembers ?? [];
+
+  // 🔍 DEBUG (optional remove later)
+  console.log("✅ DONE SCREEN:", {
+    lead,
+    team,
+    ids: teamMemberIds,
+  });
 
   return (
     <div className="space-y-5 animate-fade-in pb-10">
 
-      {/* ✅ SUCCESS CARD */}
+      {/* SUCCESS */}
       <Card className="border-green-300 bg-green-50 rounded-2xl">
         <CardContent className="p-6 text-center space-y-3">
 
@@ -34,8 +45,8 @@ export const DoneScreen = () => {
             </h2>
 
             <p className="text-sm text-muted-foreground mt-1">
-              {lead?.name || "Specialist"} assigned as your{" "}
-              {detectedProfession || "worker"}.
+              {lead.name} assigned as your{" "}
+              {detectedProfession || lead.role}.
               {team.length > 0
                 ? ` Team of ${team.length + 1} assembled.`
                 : " Working solo."}
@@ -45,7 +56,7 @@ export const DoneScreen = () => {
         </CardContent>
       </Card>
 
-      {/* ✅ TEAM LIST */}
+      {/* TEAM */}
       {team.length > 0 && (
         <Card className="rounded-2xl">
           <CardContent className="p-4 space-y-3">
@@ -56,7 +67,7 @@ export const DoneScreen = () => {
 
             {/* LEAD */}
             <div className="text-sm font-medium">
-              {lead?.name} (Lead)
+              {lead.name} (Lead)
             </div>
 
             {/* MEMBERS */}
