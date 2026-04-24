@@ -3,12 +3,13 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: "/", // ✅ IMPORTANT for Vercel
+
   server: {
-    host: true,            // better than "::" (works for all devices)
+    host: true,
     port: 8080,
-    strictPort: true,      // avoid random port switching
+    strictPort: true,
     hmr: {
       overlay: false,
     },
@@ -33,13 +34,16 @@ export default defineConfig(({ mode }) => ({
     ],
   },
 
-  // 🔥 Optional but useful for debugging
   define: {
     __DEV__: mode === "development",
   },
 
-  // 🔥 Fix for some CSS + Tailwind edge cases
   css: {
     devSourcemap: true,
+  },
+
+  // 🔥 Optional (performance improvement)
+  build: {
+    chunkSizeWarningLimit: 800,
   },
 }));
