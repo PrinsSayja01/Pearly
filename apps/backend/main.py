@@ -4,7 +4,7 @@ from typing import List, Optional
 
 app = FastAPI()
 
-# ✅ CORS (allow frontend access)
+# ✅ CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,7 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🔥 TEST DATASET (Phase 1)
+# 🔥 DATASET
 candidates_db = [
     {
         "id": 1,
@@ -77,18 +77,16 @@ candidates_db = [
     }
 ]
 
-# 🧠 DATE MATCH (overlap logic)
+# 🧠 DATE MATCH
 def is_available(worker_dates: List[str], start: Optional[str], end: Optional[str]):
     if not start:
         return True
-
     if not end:
         return start in worker_dates
-
     return any(start <= d <= end for d in worker_dates)
 
 
-# 🔥 MAIN MATCHING API (FINAL LOGIC)
+# 🔥 MATCHING API (PROGRESSIVE)
 @app.get("/candidates")
 def get_candidates(
     startDate: Optional[str] = None,
@@ -101,41 +99,61 @@ def get_candidates(
 
     for w in candidates_db:
 
-        # ❗ ONLY HARD FILTER → DATE
+        # ❗ HARD FILTER → ONLY DATE
         if not is_available(w["availability"], startDate, endDate):
             continue
 
-        score = 3  # base score (everyone visible after date match)
+        score = 3
         reasons = []
+        relaxed = False  # 🔥 new flag
 
-        # ✅ ROLE (soft filter)
-        if role and role == w["role"]:
-            score += 2
-            reasons.append("role")
+        # ✅ ROLE
+        if role:
+            if role == w["role"]:
+                score += 2
+                reasons.append("role match")
+            else:
+                score -= 1
+                relaxed = True
 
-        # ✅ LOCATION (soft filter)
-        if location and location.lower() == w["location"].lower():
-            score += 1
-            reasons.append("location")
+        # ✅ LOCATION
+        if location:
+            if location.lower() == w["location"].lower():
+                score += 1
+                reasons.append("location match")
+            else:
+                score -= 0.5
+                relaxed = True
 
         # ✅ LANGUAGE (optional)
-        if language and language in w["languages"]:
-            score += 1
-            reasons.append("language")
+        if language:
+            if language in w["languages"]:
+                score += 1
+                reasons.append("language match")
+            else:
+                score -= 0.5
+                relaxed = True
 
-        # 🧠 SKILL IMPACT
+        # 🧠 SKILL
         score += w["skill"] * 0.5
+        reasons.append("skill")
+
+        # ⭐ RATING BOOST
+        if w["rating"] >= 4.7:
+            score += 0.5
+            reasons.append("top rated")
 
         # 🔒 SAFE COPY
         worker = {
             **w,
             "match_score": round(score, 2),
-            "match_reasons": reasons
+            "match_reasons": reasons,
+            "relaxed": relaxed  # 🔥 important for UI
         }
 
         results.append(worker)
 
-    # 🔥 SORT BY BEST MATCH
+    # 🔥 SORT
     results.sort(key=lambda x: x["match_score"], reverse=True)
 
     return {
@@ -144,7 +162,7 @@ def get_candidates(
     }
 
 
-# 🔥 CREATE PROJECT (Phase 1 demo)
+# 🔥 CREATE PROJECT
 @app.post("/projects")
 async def create_project(data: dict):
     print("📥 PROJECT RECEIVED:", data)
@@ -156,10 +174,10 @@ async def create_project(data: dict):
     }
 
 
-# ✅ HEALTH CHECK
+# ✅ HEALTH
 @app.get("/")
 def root():
     return {
         "status": "Pearly backend running 🚀",
-        "version": "phase1-final"
+        "version": "phase1-progressive-filter"
     }
