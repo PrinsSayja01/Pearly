@@ -14,6 +14,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 export const TeamFormationScreen = () => {
   const {
     selectedCandidate,
+    selectedCandidateId,
+    selectCandidate,
+    setSelectedCandidate,
     teamMemberIds,
     toggleTeamMember,
     setStep,
@@ -25,78 +28,76 @@ export const TeamFormationScreen = () => {
   const autoSelectedRef = useRef(false);
 
   if (!selectedCandidate) {
-    return (
-      <div className="text-center text-sm text-muted-foreground">
-        No lead selected
-      </div>
-    );
+    return <div>No lead selected</div>;
   }
 
   const lead = selectedCandidate;
 
-  // 🔥 FETCH
+  // 📦 FETCH
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
       try {
         const res = await axios.get(`${API_URL}/candidates`);
         const data = res.data?.candidates || [];
-
-        const filtered = data.filter(
-          (w: any) => String(w.id) !== String(lead.id)
-        );
-
-        setCandidates(filtered);
+        setCandidates(data);
       } catch (err: any) {
-        console.error("❌ error:", err?.message);
-        setCandidates([]);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
     fetch();
-  }, [lead.id]);
+  }, []);
 
-  // 🧠 SORT
+  // 📊 SORT
   const sorted = useMemo(() => {
     return [...candidates].sort(
       (a, b) => (b.match_score || 0) - (a.match_score || 0)
     );
   }, [candidates]);
 
-  const suggested = useMemo(() => sorted.slice(0, 2), [sorted]);
+  const suggested = useMemo(() => sorted.slice(0, 3), [sorted]);
 
   const manualList = useMemo(() => {
-    const suggestedIds = suggested.map((s) => s.id);
-    return sorted.filter((w) => !suggestedIds.includes(w.id));
-  }, [sorted, suggested]);
+    const ids = suggested.map((s) => String(s.id));
+    return sorted.filter((w) => !ids.includes(String(w.id)));
+  }, [sorted]);
 
-  // ⚡ AUTO SELECT (ONLY ONCE)
+  // 🤖 AUTO TEAM
   useEffect(() => {
     if (!autoSelectedRef.current && suggested.length > 0) {
-      suggested.forEach((m) => toggleTeamMember(m.id));
+      suggested.forEach((m) => {
+        const id = String(m.id);
+        if (id !== String(lead.id) && !teamMemberIds.includes(id)) {
+          toggleTeamMember(id);
+        }
+      });
       autoSelectedRef.current = true;
     }
   }, [suggested]);
 
-  // 🧠 WHY SELECTED
-  const getReasons = (w: any) => {
-    const reasons = [];
+  // 🔥 CHANGE LEADER (CORE FIX)
+  const handleSelectLeader = (worker: any) => {
+    const newId = String(worker.id);
 
-    if (w.skill >= 4) reasons.push("high skill");
-    if (w.rating >= 4.5) reasons.push("top rated");
-    if (w.languages?.includes("en")) reasons.push("language match");
-    if (w.location === lead.location) reasons.push("same area");
+    // remove from team if exists
+    if (teamMemberIds.includes(newId)) {
+      toggleTeamMember(newId);
+    }
 
-    return reasons.slice(0, 3);
+    selectCandidate(newId);
+    setSelectedCandidate(worker);
   };
 
-  // ✅ 🔥 FIX: SAFE TOGGLE HANDLER
-  const handleToggle = (id: number) => {
-    console.log("👆 TOGGLE:", id);
+  const handleToggleMember = (id: number | string) => {
+    const strId = String(id);
 
-    toggleTeamMember(id);
+    // prevent adding leader as member
+    if (strId === String(selectedCandidateId)) return;
+
+    toggleTeamMember(strId);
   };
 
   return (
@@ -107,89 +108,107 @@ export const TeamFormationScreen = () => {
         total={6}
         title="Build your team"
         subtitle="AI suggests, you control"
-        onBack={() => setStep("confirm")}
+        onBack={() => setStep("candidates")}
       />
 
-      {/* LEAD */}
-      <Card className="bg-primary/5 border-primary/20 rounded-2xl">
+      {/* 👑 CURRENT LEADER */}
+      <Card className="border-2 border-blue-500 bg-blue-50 rounded-2xl">
         <CardContent className="p-4 flex items-center gap-3">
-          <Users className="h-5 w-5 text-primary" />
+          <Users className="h-5 w-5 text-blue-600" />
           <div>
             <p className="text-sm font-medium">{lead.name}</p>
-            <p className="text-xs text-muted-foreground">Team lead</p>
-          </div>
-          <div className="ml-auto text-xs text-muted-foreground">
-            {teamMemberIds.length} selected
+            <p className="text-xs text-muted-foreground">
+              Team lead (click others to change)
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* 🤖 AI SUGGESTED */}
-      {suggested.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-primary">
-            <Sparkles className="h-4 w-4" />
-            AI Suggested Team
-          </div>
+      {/* ⭐ AI SUGGESTED */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs text-primary">
+          <Sparkles className="h-4 w-4" />
+          AI Suggested Team
+        </div>
 
-          {suggested.map((w) => (
+        {suggested.map((w) => {
+          const isLead = String(selectedCandidateId) === String(w.id);
+          const isTeam = teamMemberIds.includes(String(w.id));
+
+          return (
             <div key={w.id} className="space-y-1">
 
-              <div
-                onClick={() => handleToggle(w.id)}
-                className="cursor-pointer active:scale-[0.98]"
-              >
-                <CandidateCard
-                  worker={w}
-                  selected={teamMemberIds.includes(w.id)}
-                  compact
-                />
-              </div>
+              <div className="flex gap-2">
 
-              <div className="text-[11px] text-muted-foreground pl-2">
-                Why selected: {getReasons(w).join(", ")}
+                {/* SELECT LEADER */}
+                <div
+                  onClick={() => handleSelectLeader(w)}
+                  className="flex-1"
+                >
+                  <CandidateCard
+                    worker={w}
+                    selected={isLead}
+                    compact
+                  />
+                </div>
+
+                {/* ADD MEMBER */}
+                {!isLead && (
+                  <Button
+                    size="sm"
+                    variant={isTeam ? "default" : "outline"}
+                    onClick={() => handleToggleMember(w.id)}
+                  >
+                    {isTeam ? "Added" : "Add"}
+                  </Button>
+                )}
+
               </div>
 
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {/* ✏️ MANUAL */}
+      {/* 🧠 MANUAL */}
       <div className="space-y-3">
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <UserPlus className="h-3 w-3" />
-          Adjust team (manual)
+          Adjust team
         </div>
 
-        {loading && (
-          <Card>
-            <CardContent className="p-4 text-center text-sm">
-              Finding matches...
-            </CardContent>
-          </Card>
-        )}
+        {manualList.map((w) => {
+          const isLead = String(selectedCandidateId) === String(w.id);
+          const isTeam = teamMemberIds.includes(String(w.id));
 
-        {!loading && manualList.length > 0 && (
-          <div className="space-y-2">
+          return (
+            <div key={w.id} className="flex gap-2">
 
-            {manualList.map((w) => (
               <div
-                key={w.id}
-                onClick={() => handleToggle(w.id)}
-                className="cursor-pointer active:scale-[0.98]"
+                onClick={() => handleSelectLeader(w)}
+                className="flex-1"
               >
                 <CandidateCard
                   worker={w}
-                  selected={teamMemberIds.includes(w.id)}
+                  selected={isLead}
                   compact
                 />
               </div>
-            ))}
 
-          </div>
-        )}
+              {!isLead && (
+                <Button
+                  size="sm"
+                  variant={isTeam ? "default" : "outline"}
+                  onClick={() => handleToggleMember(w.id)}
+                >
+                  {isTeam ? "Added" : "Add"}
+                </Button>
+              )}
+
+            </div>
+          );
+        })}
 
       </div>
 
@@ -198,18 +217,17 @@ export const TeamFormationScreen = () => {
 
         <Button
           variant="outline"
-          className="w-full h-12 rounded-xl"
+          className="w-full"
           onClick={() => setStep("done")}
         >
           Work alone
         </Button>
 
         <Button
-          className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-purple-500 text-white"
+          className="w-full bg-gradient-to-r from-primary to-purple-500 text-white"
           onClick={() => setStep("done")}
         >
-          Confirm team
-          <ArrowRight className="ml-1 h-4 w-4" />
+          Confirm team <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
 
       </div>

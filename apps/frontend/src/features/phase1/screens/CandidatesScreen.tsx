@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 
+import { buildSmartTeam } from "@/features/phase1/utils/teamEngine";
 import { usePhase1Store } from "../store";
 import { CandidateCard } from "../components/CandidateCard";
 import { StepHeader } from "../components/StepHeader";
@@ -19,7 +19,6 @@ const roles = [
 const languages = ["de", "en", "pl", "ua", "ru", "tr"];
 const locations = ["munich", "berlin", "hamburg"];
 
-// ✅ RELATED ROLES
 const RELATED_ROLES: Record<string, string[]> = {
   roofer: ["carpenter"],
   plumber: ["helper"],
@@ -39,6 +38,8 @@ export const CandidatesScreen = () => {
     setStep,
     setup,
     detectedProfession,
+    teamMemberIds,
+    toggleTeamMember,
   } = usePhase1Store();
 
   const [filters, setFilters] = useState({
@@ -47,10 +48,17 @@ export const CandidatesScreen = () => {
     location: "",
   });
 
-  const [skill, setSkill] = useState(0); // ✅ NEW
+  const [skill, setSkill] = useState(0);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const autoSelectedRef = useRef(false);
+
+  // reset auto select on filter change
+  useEffect(() => {
+    autoSelectedRef.current = false;
+  }, [filters, detectedProfession, skill]);
 
   const toggleFilter = (key: string, value: string) => {
     setFilters((prev) => ({
@@ -59,6 +67,7 @@ export const CandidatesScreen = () => {
     }));
   };
 
+  // 🚀 FETCH + AI ENGINE
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -73,12 +82,42 @@ export const CandidatesScreen = () => {
             role: filters.role || detectedProfession || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
-            minSkill: skill || undefined, // ✅ NEW
+            minSkill: skill || undefined,
           },
         });
 
-        setCandidates(res.data?.candidates || []);
+        const list = res.data?.candidates || [];
+
+        setCandidates(list);
         setCount(res.data?.count || 0);
+
+        localStorage.setItem("candidates", JSON.stringify(list));
+
+        // 🤖 AUTO SELECT + TEAM
+        if (!autoSelectedRef.current && list.length > 0) {
+          const best = list[0];
+
+          selectCandidate(String(best.id));
+          setSelectedCandidate(best);
+
+          if (teamMemberIds.length === 0 && list.length > 1) {
+            const smartTeam = buildSmartTeam({
+              candidates: list,
+              lead: best,
+              jobRole: filters.role || detectedProfession,
+            });
+
+            smartTeam.forEach((m: any) => {
+              const id = String(m.id);
+              if (id !== String(best.id)) {
+                toggleTeamMember(id);
+              }
+            });
+          }
+
+          autoSelectedRef.current = true;
+        }
+
       } catch (err: any) {
         console.error("❌ API error:", err?.message);
         setCandidates([]);
@@ -91,18 +130,40 @@ export const CandidatesScreen = () => {
     fetchCandidates();
   }, [setup.startDate, setup.endDate, detectedProfession, filters, skill]);
 
+  // 👑 CHANGE LEADER
+  const handleSelectLeader = (worker: any) => {
+    const id = String(worker.id);
+
+    if (id === String(selectedCandidateId)) return;
+
+    if (teamMemberIds.includes(id)) {
+      toggleTeamMember(id);
+    }
+
+    selectCandidate(id);
+    setSelectedCandidate(worker);
+  };
+
+  // 👷 TEAM TOGGLE
+  const handleToggleMember = (id: number | string) => {
+    const strId = String(id);
+
+    if (strId === String(selectedCandidateId)) return;
+
+    toggleTeamMember(strId);
+  };
+
   return (
-    <div className="space-y-4 pb-24 max-w-md mx-auto">
+    <div className="space-y-4 pb-28 max-w-md mx-auto">
 
       <StepHeader
         step={3}
         total={6}
-        title="Choose specialist"
-        subtitle="Smart matching based on filters"
+        title="Build your team"
+        subtitle="Smart matching + AI team building"
         onBack={() => setStep("setup")}
       />
 
-      {/* COUNTER */}
       <div className="text-sm font-medium">
         {count} specialists found
       </div>
@@ -121,7 +182,7 @@ export const CandidatesScreen = () => {
         ))}
       </div>
 
-      {/* ✅ RELATED ROLE SUGGESTIONS */}
+      {/* RELATED */}
       {(filters.role || detectedProfession) && (
         <div className="flex gap-2 flex-wrap">
           {(RELATED_ROLES[filters.role || detectedProfession] || []).map((r) => (
@@ -165,7 +226,7 @@ export const CandidatesScreen = () => {
         ))}
       </div>
 
-      {/* ✅ SKILL SLIDER */}
+      {/* SKILL */}
       <div>
         <div className="text-xs">Skill: {skill}+</div>
         <input
@@ -178,61 +239,44 @@ export const CandidatesScreen = () => {
         />
       </div>
 
-      {/* LOADING */}
-      {loading && (
-        <Card>
-          <CardContent className="p-5 text-center">
-            Finding specialists...
-          </CardContent>
-        </Card>
-      )}
-
       {/* LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
-          {candidates.map((w, i) => (
-            <div key={w.id}>
-              {i === 0 && <div className="text-xs text-green-600">🎯 Best match</div>}
-              {w.relaxed && <div className="text-xs text-yellow-600">Closest match</div>}
-              {w.match_reasons?.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  Why: {w.match_reasons.join(", ")}
+          {candidates.map((w, i) => {
+            const id = String(w.id);
+            const isLead = id === String(selectedCandidateId);
+            const isTeam = teamMemberIds.includes(id);
+
+            return (
+              <div key={id} className="space-y-1">
+
+                <div
+                  onClick={() => handleSelectLeader(w)}
+                  className="cursor-pointer"
+                >
+                  <CandidateCard
+                    worker={w}
+                    selected={isLead}
+                    isBest={i === 0}
+                  />
                 </div>
-              )}
-              <CandidateCard
-                worker={w}
-                selected={String(selectedCandidateId) === String(w.id)}
-                onSelect={() => {
-                  selectCandidate(String(w.id));
-                  setSelectedCandidate(w);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* EMPTY + AUTO SUGGEST */}
-      {!loading && candidates.length === 0 && (
-        <Card>
-          <CardContent className="text-center space-y-2">
-            <div>No matches. Try removing filters.</div>
+                {!isLead && (
+                  <div className="pl-2">
+                    <Button
+                      size="sm"
+                      variant={isTeam ? "default" : "outline"}
+                      onClick={() => handleToggleMember(id)}
+                    >
+                      {isTeam ? "Added" : "Add to team"}
+                    </Button>
+                  </div>
+                )}
 
-            {(filters.role || detectedProfession) && (
-              <div className="flex gap-2 flex-wrap justify-center">
-                {(RELATED_ROLES[filters.role || detectedProfession] || []).map((r) => (
-                  <Button
-                    key={r}
-                    size="sm"
-                    onClick={() => toggleFilter("role", r)}
-                  >
-                    Try {r}
-                  </Button>
-                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* CTA */}
@@ -240,11 +284,12 @@ export const CandidatesScreen = () => {
         <Button
           className="w-full"
           disabled={!selectedCandidateId}
-          onClick={() => setStep("confirm")}
+          onClick={() => setStep("done")}
         >
-          Continue <ArrowRight className="ml-2 h-4 w-4" />
+          Confirm Team <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
+
     </div>
   );
 };

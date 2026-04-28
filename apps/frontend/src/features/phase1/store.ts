@@ -1,22 +1,18 @@
 import { create } from "zustand";
 
-/* 🔥 SIMPLE AI DETECT (TEMP) */
+/* 🔥 IMPROVED AI DETECT */
 export const detectProfession = (text: string) => {
   const input = text.toLowerCase();
 
-  if (input.includes("pipe") || input.includes("leak") || input.includes("plumb")) {
-    return { profession: "plumber", suggestions: ["pipe repair", "leak fixing"] };
-  }
+  if (input.includes("roof")) return { profession: "roofer", suggestions: [] };
+  if (input.includes("pipe") || input.includes("leak")) return { profession: "plumber", suggestions: [] };
+  if (input.includes("wire") || input.includes("electric")) return { profession: "electrician", suggestions: [] };
+  if (input.includes("paint")) return { profession: "painter", suggestions: [] };
+  if (input.includes("tile")) return { profession: "tiler", suggestions: [] };
+  if (input.includes("clean")) return { profession: "cleaner", suggestions: [] };
+  if (input.includes("wood")) return { profession: "carpenter", suggestions: [] };
 
-  if (input.includes("wire") || input.includes("electric")) {
-    return { profession: "electrician", suggestions: ["wiring", "power setup"] };
-  }
-
-  if (input.includes("paint")) {
-    return { profession: "painter", suggestions: ["wall painting"] };
-  }
-
-  return { profession: "technician", suggestions: ["general repair"] };
+  return { profession: "", suggestions: [] };
 };
 
 export type Phase1Step =
@@ -29,7 +25,6 @@ export type Phase1Step =
 
 interface Phase1State {
   step: Phase1Step;
-
   taskInput: string;
 
   detectedProfession: string;
@@ -60,7 +55,6 @@ interface Phase1State {
 
 export const usePhase1Store = create<Phase1State>((set) => ({
   step: "input",
-
   taskInput: "",
 
   detectedProfession: "",
@@ -77,11 +71,7 @@ export const usePhase1Store = create<Phase1State>((set) => ({
 
   teamMemberIds: [],
 
-  setStep: (step) => {
-    console.log("STEP →", step);
-    set({ step });
-  },
-
+  setStep: (step) => set({ step }),
   setTaskInput: (taskInput) => set({ taskInput }),
 
   setDetected: (profession, suggestions) =>
@@ -95,16 +85,21 @@ export const usePhase1Store = create<Phase1State>((set) => ({
       setup: { ...state.setup, ...s },
     })),
 
-  selectCandidate: (id) => set({ selectedCandidateId: String(id) }),
+  selectCandidate: (id) =>
+    set({ selectedCandidateId: String(id) }),
 
-  setSelectedCandidate: (c) => set({ selectedCandidate: c }),
+  setSelectedCandidate: (c) =>
+    set({ selectedCandidate: c }),
 
   toggleTeamMember: (id) =>
-    set((state) => ({
-      teamMemberIds: state.teamMemberIds.includes(id)
-        ? state.teamMemberIds.filter((x) => x !== id)
-        : [...state.teamMemberIds, id],
-    })),
+    set((state) => {
+      const strId = String(id);
+      return {
+        teamMemberIds: state.teamMemberIds.includes(strId)
+          ? state.teamMemberIds.filter((x) => x !== strId)
+          : [...state.teamMemberIds, strId],
+      };
+    }),
 
   reset: () =>
     set({

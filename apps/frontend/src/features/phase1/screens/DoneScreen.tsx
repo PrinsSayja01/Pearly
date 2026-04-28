@@ -2,78 +2,85 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2 } from "lucide-react";
 
-import { workers } from "@/data/mock";
 import { usePhase1Store } from "../store";
 
 export const DoneScreen = () => {
   const {
-    selectedCandidateId,
+    selectedCandidate,
     teamMemberIds,
-    detectedProfession,
     reset,
   } = usePhase1Store();
 
-  const lead = workers.find((w) => w.id === selectedCandidateId);
-  const team = workers.filter((w) => teamMemberIds.includes(w.id));
+  const allCandidates = JSON.parse(localStorage.getItem("candidates") || "[]");
+
+  const teamMembers = allCandidates.filter((c: any) =>
+    teamMemberIds.includes(String(c.id))
+  );
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5">
 
-      <Card className="border-success/30 bg-success/5">
+      {/* SUCCESS */}
+      <Card>
         <CardContent className="p-6 text-center space-y-3">
 
-          <div className="h-14 w-14 rounded-full bg-success text-success-foreground flex items-center justify-center mx-auto shadow-glow">
-            <CheckCircle2 className="h-7 w-7" />
-          </div>
+          <CheckCircle2 className="h-10 w-10 mx-auto text-green-600" />
 
-          <div>
-            <h2 className="font-display text-2xl">
-              Project created
-            </h2>
+          <h2 className="text-xl font-semibold">
+            Project created
+          </h2>
 
-            <p className="text-sm text-muted-foreground mt-1">
-              {lead?.name || "Specialist"} assigned as your{" "}
-              {detectedProfession || "worker"}.
-              {team.length > 0
-                ? ` Team of ${team.length + 1} assembled.`
-                : " Working solo."}
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {selectedCandidate?.name} is leading your team
+          </p>
 
         </CardContent>
       </Card>
 
-      {team.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Team
-            </div>
+      {/* TEAM */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
 
-            <div className="text-sm font-medium">
-              {lead?.name} (Lead)
-            </div>
+          <div className="text-xs text-muted-foreground">
+            Team Structure
+          </div>
 
-            {team.map((w) => (
-              <div key={w.id} className="text-sm text-muted-foreground">
-                {w.name} — {w.trade}
+          {/* LEAD */}
+          {selectedCandidate && (
+            <div className="border-2 border-blue-500 bg-blue-50 rounded-xl p-3">
+              <div className="font-medium text-blue-700">
+                👑 {selectedCandidate.name}
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              <div className="text-xs text-muted-foreground">
+                Team Lead
+              </div>
+            </div>
+          )}
 
-      <div className="flex gap-2">
-        <Button
-          className="w-full h-12 bg-gradient-primary hover:opacity-90"
-          onClick={() => {
-            console.log("🔄 Reset flow");
-            reset();
-          }}
-        >
-          Start new project
-        </Button>
-      </div>
+          {/* MEMBERS */}
+          {teamMembers.length > 0 ? (
+            teamMembers.map((m: any) => (
+              <div key={m.id} className="border rounded-xl p-3">
+                <div className="font-medium">
+                  {m.name}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {m.trade}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No team members
+            </div>
+          )}
+
+        </CardContent>
+      </Card>
+
+      <Button className="w-full" onClick={reset}>
+        Start new project
+      </Button>
 
     </div>
   );
