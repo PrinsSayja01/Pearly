@@ -13,7 +13,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🔥 DATASET
+# 🔥 RELATED ROLES (for AI suggestions)
+RELATED_ROLES = {
+    "roofer": ["carpenter"],
+    "plumber": ["helper"],
+    "electrician": ["helper"],
+    "carpenter": ["roofer"],
+    "painter": ["tiler"],
+    "tiler": ["painter"],
+    "cleaner": [],
+    "helper": [],
+}
+
+# 🔥 DATASET (18 candidates, multi-language, multi-role)
 candidates_db = [
     {"id":1,"name":"Max Müller","role":"plumber","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-10","2026-04-11"],"rating":4.8},
     {"id":2,"name":"Ivan Petrov","role":"plumber","languages":["ru","de"],"skill":4,"location":"berlin","availability":["2026-04-12"],"rating":4.6},
@@ -35,7 +47,7 @@ candidates_db = [
     {"id":18,"name":"Thomas Weber","role":"roofer","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-24"],"rating":4.9},
 ]
 
-# 🧠 DATE MATCH
+# 🧠 DATE OVERLAP LOGIC
 def is_available(worker_dates: List[str], start: Optional[str], end: Optional[str]):
     if not start:
         return True
@@ -44,7 +56,7 @@ def is_available(worker_dates: List[str], start: Optional[str], end: Optional[st
     return any(start <= d <= end for d in worker_dates)
 
 
-# 🔥 MATCHING API (FINAL PROGRESSIVE)
+# 🔥 MATCHING API (AI LOGIC)
 @app.get("/candidates")
 def get_candidates(
     startDate: Optional[str] = None,
@@ -52,11 +64,22 @@ def get_candidates(
     role: Optional[str] = None,
     language: Optional[str] = None,
     location: Optional[str] = None,
+    minSkill: Optional[int] = None,
 ):
     results = []
     fallback_results = []
 
+    # ✅ MULTI ROLE (main + related)
+    roles_to_match = []
+    if role:
+        roles_to_match.append(role)
+        roles_to_match += RELATED_ROLES.get(role, [])
+
     for w in candidates_db:
+
+        # 🔥 HARD ROLE FILTER (CRITICAL FIX)
+        if roles_to_match and w["role"] not in roles_to_match:
+            continue
 
         available = is_available(w["availability"], startDate, endDate)
 
@@ -64,42 +87,47 @@ def get_candidates(
         reasons = []
         relaxed = False
 
-        # ✅ DATE (primary weight)
+        # ✅ DATE (main factor)
         if available:
             score += 3
-            reasons.append("available on selected date")
+            reasons.append("available")
         else:
             score -= 2
             relaxed = True
 
-        # ✅ ROLE
+        # ✅ ROLE BOOST
         if role:
-            if role == w["role"]:
+            if w["role"] == role:
                 score += 2
-                reasons.append("role match")
-            else:
-                score -= 0.5
-                relaxed = True
+                reasons.append("exact role")
+            elif w["role"] in RELATED_ROLES.get(role, []):
+                score += 1
+                reasons.append("related role")
 
         # ✅ LOCATION
         if location:
             if location.lower() == w["location"].lower():
                 score += 1
-                reasons.append("location match")
+                reasons.append("location")
             else:
                 score -= 0.3
                 relaxed = True
 
-        # ✅ LANGUAGE
+        # ✅ LANGUAGE (optional)
         if language:
             if language in w["languages"]:
                 score += 1
-                reasons.append("language match")
+                reasons.append("language")
             else:
                 score -= 0.3
                 relaxed = True
 
-        # 🧠 SKILL + RATING
+        # ✅ SKILL FILTER
+        if minSkill:
+            if w["skill"] < minSkill:
+                continue
+
+        # 🧠 SKILL + RATING IMPACT
         score += w["skill"] * 0.5
         if w["rating"] >= 4.7:
             score += 0.5
@@ -109,7 +137,7 @@ def get_candidates(
             **w,
             "match_score": round(score, 2),
             "match_reasons": reasons,
-            "relaxed": relaxed
+            "relaxed": relaxed,
         }
 
         if available:
@@ -117,32 +145,34 @@ def get_candidates(
         else:
             fallback_results.append(worker)
 
-    # 🔥 MAIN SORT
+    # 🔥 SORT BEST FIRST
     results.sort(key=lambda x: x["match_score"], reverse=True)
 
-    # 🔁 FALLBACK (IMPORTANT UX FIX)
+    # 🔁 FALLBACK (VERY IMPORTANT UX)
     if len(results) == 0:
         fallback_results.sort(key=lambda x: x["match_score"], reverse=True)
         results = fallback_results
 
     return {
         "candidates": results,
-        "count": len(results)
+        "count": len(results),
     }
 
 
+# 🔥 PROJECT API
 @app.post("/projects")
 async def create_project(data: dict):
     return {
         "status": "success",
         "message": "Project created successfully",
-        "data": data
+        "data": data,
     }
 
 
+# ✅ HEALTH CHECK
 @app.get("/")
 def root():
     return {
         "status": "Pearly backend running 🚀",
-        "mode": "progressive-filter-final"
+        "mode": "ai-matching-v2-final",
     }

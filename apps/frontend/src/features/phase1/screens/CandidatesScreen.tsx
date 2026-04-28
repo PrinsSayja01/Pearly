@@ -12,18 +12,24 @@ import { StepHeader } from "../components/StepHeader";
 const API_URL = import.meta.env.VITE_API_URL;
 
 const roles = [
-  "plumber",
-  "electrician",
-  "roofer",
-  "carpenter",
-  "painter",
-  "tiler",
-  "cleaner",
-  "helper",
+  "plumber","electrician","roofer","carpenter",
+  "painter","tiler","cleaner","helper",
 ];
 
 const languages = ["de", "en", "pl", "ua", "ru", "tr"];
 const locations = ["munich", "berlin", "hamburg"];
+
+// ✅ RELATED ROLES
+const RELATED_ROLES: Record<string, string[]> = {
+  roofer: ["carpenter"],
+  plumber: ["helper"],
+  electrician: ["helper"],
+  carpenter: ["roofer"],
+  painter: ["tiler"],
+  tiler: ["painter"],
+  cleaner: [],
+  helper: [],
+};
 
 export const CandidatesScreen = () => {
   const {
@@ -41,6 +47,7 @@ export const CandidatesScreen = () => {
     location: "",
   });
 
+  const [skill, setSkill] = useState(0); // ✅ NEW
   const [candidates, setCandidates] = useState<any[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -63,10 +70,10 @@ export const CandidatesScreen = () => {
           params: {
             startDate: setup.startDate,
             endDate: setup.endDate,
-            // ✅ IMPORTANT FIX (user override first)
             role: filters.role || detectedProfession || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
+            minSkill: skill || undefined, // ✅ NEW
           },
         });
 
@@ -82,7 +89,7 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, setup.endDate, detectedProfession, filters]);
+  }, [setup.startDate, setup.endDate, detectedProfession, filters, skill]);
 
   return (
     <div className="space-y-4 pb-24 max-w-md mx-auto">
@@ -95,10 +102,9 @@ export const CandidatesScreen = () => {
         onBack={() => setStep("setup")}
       />
 
-      {/* ✅ COUNTER */}
+      {/* COUNTER */}
       <div className="text-sm font-medium">
-        {count} specialists found{" "}
-        {(filters.role || filters.language || filters.location) && "(filtered)"}
+        {count} specialists found
       </div>
 
       {/* ROLE */}
@@ -114,6 +120,22 @@ export const CandidatesScreen = () => {
           </Button>
         ))}
       </div>
+
+      {/* ✅ RELATED ROLE SUGGESTIONS */}
+      {(filters.role || detectedProfession) && (
+        <div className="flex gap-2 flex-wrap">
+          {(RELATED_ROLES[filters.role || detectedProfession] || []).map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant="secondary"
+              onClick={() => toggleFilter("role", r)}
+            >
+              Suggest: {r}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {/* LANGUAGE */}
       <div className="flex gap-2">
@@ -143,6 +165,19 @@ export const CandidatesScreen = () => {
         ))}
       </div>
 
+      {/* ✅ SKILL SLIDER */}
+      <div>
+        <div className="text-xs">Skill: {skill}+</div>
+        <input
+          type="range"
+          min="0"
+          max="5"
+          value={skill}
+          onChange={(e) => setSkill(Number(e.target.value))}
+          className="w-full"
+        />
+      </div>
+
       {/* LOADING */}
       {loading && (
         <Card>
@@ -156,55 +191,52 @@ export const CandidatesScreen = () => {
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
           {candidates.map((w, i) => (
-            <div
-              key={w.id}
-              onClick={() => {
-                selectCandidate(String(w.id));
-                setSelectedCandidate(w);
-              }}
-              className="cursor-pointer"
-            >
-              {/* BEST MATCH */}
-              {i === 0 && (
-                <div className="text-[10px] text-green-600">
-                  🎯 Best match
-                </div>
-              )}
-
-              {/* RELAXED */}
-              {w.relaxed && (
-                <div className="text-[10px] text-yellow-600">
-                  Closest match
-                </div>
-              )}
-
-              {/* EXPLAINABLE AI */}
+            <div key={w.id}>
+              {i === 0 && <div className="text-xs text-green-600">🎯 Best match</div>}
+              {w.relaxed && <div className="text-xs text-yellow-600">Closest match</div>}
               {w.match_reasons?.length > 0 && (
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   Why: {w.match_reasons.join(", ")}
                 </div>
               )}
-
               <CandidateCard
                 worker={w}
                 selected={String(selectedCandidateId) === String(w.id)}
+                onSelect={() => {
+                  selectCandidate(String(w.id));
+                  setSelectedCandidate(w);
+                }}
               />
             </div>
           ))}
         </div>
       )}
 
-      {/* EMPTY */}
+      {/* EMPTY + AUTO SUGGEST */}
       {!loading && candidates.length === 0 && (
         <Card>
-          <CardContent className="text-center">
-            No matches. Try removing filters.
+          <CardContent className="text-center space-y-2">
+            <div>No matches. Try removing filters.</div>
+
+            {(filters.role || detectedProfession) && (
+              <div className="flex gap-2 flex-wrap justify-center">
+                {(RELATED_ROLES[filters.role || detectedProfession] || []).map((r) => (
+                  <Button
+                    key={r}
+                    size="sm"
+                    onClick={() => toggleFilter("role", r)}
+                  >
+                    Try {r}
+                  </Button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       {/* CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
           className="w-full"
           disabled={!selectedCandidateId}
