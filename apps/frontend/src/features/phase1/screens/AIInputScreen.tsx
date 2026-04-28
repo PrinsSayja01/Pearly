@@ -2,9 +2,11 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { detectProfession, usePhase1Store } from "../store";
+
+import { usePhase1Store } from "../store";
+import { detectProfession } from "@/utils/professionMap"; // ✅ FIX
 import { StepHeader } from "../components/StepHeader";
 
 export const AIInputScreen = () => {
@@ -14,14 +16,17 @@ export const AIInputScreen = () => {
     setDetected,
     setStep,
     detectedProfession,
-    suggestions,
+    suggestions = [],
   } = usePhase1Store();
 
   useEffect(() => {
-    if (taskInput.trim().length < 4) return;
+    if (taskInput.trim().length < 3) return;
 
-    const res = detectProfession(taskInput);
-    setDetected(res.profession, res.suggestions);
+    const profession = detectProfession(taskInput);
+
+    if (profession) {
+      setDetected(profession, []);
+    }
   }, [taskInput]);
 
   return (
@@ -36,7 +41,7 @@ export const AIInputScreen = () => {
 
       {detectedProfession && (
         <Card>
-          <CardContent>
+          <CardContent className="flex gap-2 flex-wrap">
             <Badge>{detectedProfession}</Badge>
             {suggestions.map((s) => (
               <Badge key={s}>{s}</Badge>
@@ -45,12 +50,7 @@ export const AIInputScreen = () => {
         </Card>
       )}
 
-      <Button
-        onClick={() => {
-          console.log("➡️ GO SETUP");
-          setStep("setup");
-        }}
-      >
+      <Button onClick={() => setStep("setup")}>
         Continue <ArrowRight />
       </Button>
     </div>
