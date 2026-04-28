@@ -1,115 +1,168 @@
-import { create } from "zustand";
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Optional
 
-/* 🔥 IMPROVED AI DETECT */
-export const detectProfession = (text: string) => {
-  const input = text.toLowerCase();
+app = FastAPI()
 
-  if (input.includes("roof")) return { profession: "roofer", suggestions: [] };
-  if (input.includes("pipe") || input.includes("leak")) return { profession: "plumber", suggestions: [] };
-  if (input.includes("wire") || input.includes("electric")) return { profession: "electrician", suggestions: [] };
-  if (input.includes("paint")) return { profession: "painter", suggestions: [] };
-  if (input.includes("tile")) return { profession: "tiler", suggestions: [] };
-  if (input.includes("clean")) return { profession: "cleaner", suggestions: [] };
-  if (input.includes("wood")) return { profession: "carpenter", suggestions: [] };
+# ✅ CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-  return { profession: "", suggestions: [] };
-};
-
-export type Phase1Step =
-  | "input"
-  | "setup"
-  | "candidates"
-  | "confirm"
-  | "team"
-  | "done";
-
-interface Phase1State {
-  step: Phase1Step;
-  taskInput: string;
-
-  detectedProfession: string;
-  suggestions: string[];
-
-  setup: {
-    startDate: string;
-    endDate: string;
-    location: string;
-  };
-
-  selectedCandidateId: string | null;
-  selectedCandidate: any | null;
-
-  teamMemberIds: string[];
-
-  setStep: (s: Phase1Step) => void;
-  setTaskInput: (s: string) => void;
-  setDetected: (p: string, s: string[]) => void;
-  setSetup: (s: any) => void;
-
-  selectCandidate: (id: string) => void;
-  setSelectedCandidate: (c: any) => void;
-
-  toggleTeamMember: (id: string) => void;
-  reset: () => void;
+# 🔥 RELATED ROLES (ONLY FOR SCORING, NOT FILTERING)
+RELATED_ROLES = {
+    "roofer": ["carpenter"],
+    "plumber": ["helper"],
+    "electrician": ["helper"],
+    "carpenter": ["roofer"],
+    "painter": ["tiler"],
+    "tiler": ["painter"],
+    "cleaner": [],
+    "helper": [],
 }
 
-export const usePhase1Store = create<Phase1State>((set) => ({
-  step: "input",
-  taskInput: "",
+# 🔥 DATASET
+candidates_db = [
+    {"id":1,"name":"Max Müller","role":"plumber","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-10","2026-04-11"],"rating":4.8},
+    {"id":2,"name":"Ivan Petrov","role":"plumber","languages":["ru","de"],"skill":4,"location":"berlin","availability":["2026-04-12"],"rating":4.6},
+    {"id":3,"name":"Ali Khan","role":"electrician","languages":["en","de"],"skill":4,"location":"munich","availability":["2026-04-15"],"rating":4.7},
+    {"id":4,"name":"Mehmet Yilmaz","role":"electrician","languages":["tr","de"],"skill":3,"location":"hamburg","availability":["2026-04-14"],"rating":4.4},
+    {"id":5,"name":"Piotr Nowak","role":"tiler","languages":["pl","en"],"skill":5,"location":"berlin","availability":["2026-04-18"],"rating":4.9},
+    {"id":6,"name":"Olena Ivanova","role":"cleaner","languages":["ua","ru"],"skill":4,"location":"berlin","availability":["2026-04-11"],"rating":4.5},
+    {"id":7,"name":"Hans Becker","role":"carpenter","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-20"],"rating":4.8},
+    {"id":8,"name":"Carlos Ruiz","role":"painter","languages":["en"],"skill":3,"location":"hamburg","availability":["2026-04-15"],"rating":4.3},
+    {"id":9,"name":"Ahmet Kaya","role":"helper","languages":["tr"],"skill":2,"location":"berlin","availability":["2026-04-10"],"rating":4.1},
+    {"id":10,"name":"Sofia Rossi","role":"cleaner","languages":["en"],"skill":5,"location":"hamburg","availability":["2026-04-20"],"rating":4.9},
+    {"id":11,"name":"David Klein","role":"electrician","languages":["de"],"skill":3,"location":"berlin","availability":["2026-04-13"],"rating":4.3},
+    {"id":12,"name":"Lukas Schmidt","role":"roofer","languages":["de"],"skill":4,"location":"munich","availability":["2026-04-16"],"rating":4.6},
+    {"id":13,"name":"Sergey Ivanov","role":"plumber","languages":["ru"],"skill":3,"location":"hamburg","availability":["2026-04-17"],"rating":4.2},
+    {"id":14,"name":"Fatma Demir","role":"cleaner","languages":["tr","de"],"skill":4,"location":"berlin","availability":["2026-04-19"],"rating":4.7},
+    {"id":15,"name":"Jan Kowalski","role":"carpenter","languages":["pl"],"skill":5,"location":"munich","availability":["2026-04-21"],"rating":4.8},
+    {"id":16,"name":"Oleksii Bondar","role":"tiler","languages":["ua"],"skill":4,"location":"hamburg","availability":["2026-04-22"],"rating":4.6},
+    {"id":17,"name":"Marco Bianchi","role":"painter","languages":["en"],"skill":3,"location":"berlin","availability":["2026-04-23"],"rating":4.4},
+    {"id":18,"name":"Thomas Weber","role":"roofer","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-24"],"rating":4.9},
+]
 
-  detectedProfession: "",
-  suggestions: [],
+# 🧠 DATE LOGIC
+def is_available(worker_dates: List[str], start: Optional[str], end: Optional[str]):
+    if not start:
+        return True
+    if not end:
+        return start in worker_dates
+    return any(start <= d <= end for d in worker_dates)
 
-  setup: {
-    startDate: "",
-    endDate: "",
-    location: "",
-  },
 
-  selectedCandidateId: null,
-  selectedCandidate: null,
+# 🔥 FINAL MATCHING API
+@app.get("/candidates")
+def get_candidates(
+    startDate: Optional[str] = None,
+    endDate: Optional[str] = None,
+    role: Optional[str] = None,
+    language: Optional[str] = None,
+    location: Optional[str] = None,
+    minSkill: Optional[int] = None,
+):
+    filtered = []
+    fallback = []
 
-  teamMemberIds: [],
+    for w in candidates_db:
 
-  setStep: (step) => set({ step }),
-  setTaskInput: (taskInput) => set({ taskInput }),
+        # ✅ STRICT ROLE FILTER (NO MIXING)
+        if role and w["role"] != role:
+            continue
 
-  setDetected: (profession, suggestions) =>
-    set({
-      detectedProfession: profession,
-      suggestions: suggestions || [],
-    }),
+        # ✅ HARD FILTERS
+        if minSkill and w["skill"] < minSkill:
+            continue
 
-  setSetup: (s) =>
-    set((state) => ({
-      setup: { ...state.setup, ...s },
-    })),
+        if language and language not in w["languages"]:
+            continue
 
-  selectCandidate: (id) =>
-    set({ selectedCandidateId: String(id) }),
+        if location and location.lower() != w["location"].lower():
+            continue
 
-  setSelectedCandidate: (c) =>
-    set({ selectedCandidate: c }),
+        available = is_available(w["availability"], startDate, endDate)
 
-  toggleTeamMember: (id) =>
-    set((state) => {
-      const strId = String(id);
-      return {
-        teamMemberIds: state.teamMemberIds.includes(strId)
-          ? state.teamMemberIds.filter((x) => x !== strId)
-          : [...state.teamMemberIds, strId],
-      };
-    }),
+        score = 0
+        reasons = []
 
-  reset: () =>
-    set({
-      step: "input",
-      taskInput: "",
-      detectedProfession: "",
-      suggestions: [],
-      setup: { startDate: "", endDate: "", location: "" },
-      selectedCandidateId: null,
-      selectedCandidate: null,
-      teamMemberIds: [],
-    }),
-}));
+        # 🧠 AVAILABILITY
+        if available:
+            score += 3
+            reasons.append("available")
+        else:
+            score -= 2
+
+        # 🎯 EXACT ROLE BOOST
+        if role and w["role"] == role:
+            score += 3
+            reasons.append("exact role")
+
+        # 🤖 RELATED ROLE (SOFT ONLY)
+        elif role and w["role"] in RELATED_ROLES.get(role, []):
+            score += 1
+            reasons.append("related skill")
+
+        # 📍 LOCATION BOOST
+        if location and location.lower() == w["location"].lower():
+            score += 1
+            reasons.append("location")
+
+        # 🌍 LANGUAGE BOOST
+        if language and language in w["languages"]:
+            score += 1
+            reasons.append("language")
+
+        # 💪 SKILL + ⭐ RATING
+        score += w["skill"] * 0.5
+
+        if w["rating"] >= 4.7:
+            score += 0.5
+            reasons.append("top rated")
+
+        worker = {
+            **w,
+            "match_score": round(score, 2),
+            "match_reasons": reasons,
+        }
+
+        if available:
+            filtered.append(worker)
+        else:
+            fallback.append(worker)
+
+    # 🔥 SORT AFTER FILTERING
+    filtered.sort(key=lambda x: x["match_score"], reverse=True)
+
+    # 🔁 FALLBACK ONLY IF EMPTY
+    if not filtered:
+        fallback.sort(key=lambda x: x["match_score"], reverse=True)
+        filtered = fallback
+
+    return {
+        "candidates": filtered,
+        "count": len(filtered),
+    }
+
+
+# 🔥 PROJECT API
+@app.post("/projects")
+async def create_project(data: dict):
+    return {
+        "status": "success",
+        "message": "Project created successfully",
+        "data": data,
+    }
+
+
+# ✅ HEALTH CHECK
+@app.get("/")
+def root():
+    return {
+        "status": "Pearly backend running 🚀",
+        "mode": "strict-filter-v2-clean",
+    }

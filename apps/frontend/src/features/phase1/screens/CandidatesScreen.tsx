@@ -11,25 +11,6 @@ import { StepHeader } from "../components/StepHeader";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const roles = [
-  "plumber","electrician","roofer","carpenter",
-  "painter","tiler","cleaner","helper",
-];
-
-const languages = ["de", "en", "pl", "ua", "ru", "tr"];
-const locations = ["munich", "berlin", "hamburg"];
-
-const RELATED_ROLES: Record<string, string[]> = {
-  roofer: ["carpenter"],
-  plumber: ["helper"],
-  electrician: ["helper"],
-  carpenter: ["roofer"],
-  painter: ["tiler"],
-  tiler: ["painter"],
-  cleaner: [],
-  helper: [],
-};
-
 export const CandidatesScreen = () => {
   const {
     selectedCandidateId,
@@ -42,32 +23,16 @@ export const CandidatesScreen = () => {
     toggleTeamMember,
   } = usePhase1Store();
 
-  const [filters, setFilters] = useState({
-    role: "",
-    language: "",
-    location: "",
-  });
-
-  const [skill, setSkill] = useState(0);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const autoSelectedRef = useRef(false);
 
-  // reset auto select on filter change
   useEffect(() => {
     autoSelectedRef.current = false;
-  }, [filters, detectedProfession, skill]);
+  }, [detectedProfession]);
 
-  const toggleFilter = (key: string, value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: prev[key as keyof typeof prev] === value ? "" : value,
-    }));
-  };
-
-  // 🚀 FETCH + AI ENGINE
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -77,34 +42,39 @@ export const CandidatesScreen = () => {
       try {
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
-            startDate: setup.startDate,
-            endDate: setup.endDate,
-            role: filters.role || detectedProfession || undefined,
-            language: filters.language || undefined,
-            location: filters.location || undefined,
-            minSkill: skill || undefined,
+            role: detectedProfession || undefined,
           },
         });
 
         const list = res.data?.candidates || [];
 
-        setCandidates(list);
-        setCount(res.data?.count || 0);
+        // ✅ STRICT ROLE FILTER (frontend safety)
+        const strictlyFiltered = detectedProfession
+          ? list.filter((c: any) => c.role === detectedProfession)
+          : list;
 
-        localStorage.setItem("candidates", JSON.stringify(list));
+        // ✅ SORT AFTER FILTER
+        const sorted = [...strictlyFiltered].sort(
+          (a, b) => (b.match_score || 0) - (a.match_score || 0)
+        );
 
-        // 🤖 AUTO SELECT + TEAM
-        if (!autoSelectedRef.current && list.length > 0) {
-          const best = list[0];
+        setCandidates(sorted);
+        setCount(sorted.length);
+
+        localStorage.setItem("candidates", JSON.stringify(sorted));
+
+        // 🤖 AUTO SELECT
+        if (!autoSelectedRef.current && sorted.length > 0) {
+          const best = sorted[0];
 
           selectCandidate(String(best.id));
           setSelectedCandidate(best);
 
-          if (teamMemberIds.length === 0 && list.length > 1) {
+          if (teamMemberIds.length === 0 && sorted.length > 1) {
             const smartTeam = buildSmartTeam({
-              candidates: list,
+              candidates: sorted,
               lead: best,
-              jobRole: filters.role || detectedProfession,
+              jobRole: detectedProfession,
             });
 
             smartTeam.forEach((m: any) => {
@@ -128,7 +98,7 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, setup.endDate, detectedProfession, filters, skill]);
+  }, [setup.startDate, detectedProfession]);
 
   // 👑 CHANGE LEADER
   const handleSelectLeader = (worker: any) => {
@@ -160,88 +130,17 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Build your team"
-        subtitle="Smart matching + AI team building"
-        onBack={() => setStep("setup")}
+        subtitle="Strict role matching + AI team"
       />
 
       <div className="text-sm font-medium">
         {count} specialists found
       </div>
 
-      {/* ROLE */}
-      <div className="flex gap-2 overflow-x-auto">
-        {roles.map((r) => (
-          <Button
-            key={r}
-            size="sm"
-            variant={filters.role === r ? "default" : "outline"}
-            onClick={() => toggleFilter("role", r)}
-          >
-            {r}
-          </Button>
-        ))}
-      </div>
-
-      {/* RELATED */}
-      {(filters.role || detectedProfession) && (
-        <div className="flex gap-2 flex-wrap">
-          {(RELATED_ROLES[filters.role || detectedProfession] || []).map((r) => (
-            <Button
-              key={r}
-              size="sm"
-              variant="secondary"
-              onClick={() => toggleFilter("role", r)}
-            >
-              Suggest: {r}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      {/* LANGUAGE */}
-      <div className="flex gap-2">
-        {languages.map((l) => (
-          <Button
-            key={l}
-            size="sm"
-            variant={filters.language === l ? "default" : "outline"}
-            onClick={() => toggleFilter("language", l)}
-          >
-            {l.toUpperCase()}
-          </Button>
-        ))}
-      </div>
-
-      {/* LOCATION */}
-      <div className="flex gap-2 overflow-x-auto">
-        {locations.map((loc) => (
-          <Button
-            key={loc}
-            size="sm"
-            variant={filters.location === loc ? "default" : "outline"}
-            onClick={() => toggleFilter("location", loc)}
-          >
-            {loc}
-          </Button>
-        ))}
-      </div>
-
-      {/* SKILL */}
-      <div>
-        <div className="text-xs">Skill: {skill}+</div>
-        <input
-          type="range"
-          min="0"
-          max="5"
-          value={skill}
-          onChange={(e) => setSkill(Number(e.target.value))}
-          className="w-full"
-        />
-      </div>
-
       {/* LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
+
           {candidates.map((w, i) => {
             const id = String(w.id);
             const isLead = id === String(selectedCandidateId);
@@ -249,6 +148,12 @@ export const CandidatesScreen = () => {
 
             return (
               <div key={id} className="space-y-1">
+
+                {i === 0 && (
+                  <div className="text-xs text-green-600">
+                    🎯 Best match
+                  </div>
+                )}
 
                 <div
                   onClick={() => handleSelectLeader(w)}
@@ -276,10 +181,16 @@ export const CandidatesScreen = () => {
               </div>
             );
           })}
+
         </div>
       )}
 
-      {/* CTA */}
+      {candidates.length === 0 && !loading && (
+        <div className="text-center text-sm text-muted-foreground">
+          No matching professionals found
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
           className="w-full"
