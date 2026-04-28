@@ -11,7 +11,17 @@ import { StepHeader } from "../components/StepHeader";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const roles = ["plumber", "electrician", "roofer", "carpenter", "cleaner"];
+const roles = [
+  "plumber",
+  "electrician",
+  "roofer",
+  "carpenter",
+  "painter",
+  "tiler",
+  "cleaner",
+  "helper",
+];
+
 const languages = ["de", "en", "pl", "ua", "ru", "tr"];
 const locations = ["munich", "berlin", "hamburg"];
 
@@ -53,7 +63,8 @@ export const CandidatesScreen = () => {
           params: {
             startDate: setup.startDate,
             endDate: setup.endDate,
-            role: detectedProfession || filters.role || undefined,
+            // ✅ IMPORTANT FIX (user override first)
+            role: filters.role || detectedProfession || undefined,
             language: filters.language || undefined,
             location: filters.location || undefined,
           },
@@ -80,13 +91,14 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Choose specialist"
-        subtitle="Filter and refine results"
+        subtitle="Smart matching based on filters"
         onBack={() => setStep("setup")}
       />
 
       {/* ✅ COUNTER */}
       <div className="text-sm font-medium">
-        {count} specialists found
+        {count} specialists found{" "}
+        {(filters.role || filters.language || filters.location) && "(filtered)"}
       </div>
 
       {/* ROLE */}
@@ -150,19 +162,23 @@ export const CandidatesScreen = () => {
                 selectCandidate(String(w.id));
                 setSelectedCandidate(w);
               }}
+              className="cursor-pointer"
             >
+              {/* BEST MATCH */}
               {i === 0 && (
                 <div className="text-[10px] text-green-600">
                   🎯 Best match
                 </div>
               )}
 
+              {/* RELAXED */}
               {w.relaxed && (
                 <div className="text-[10px] text-yellow-600">
                   Closest match
                 </div>
               )}
 
+              {/* EXPLAINABLE AI */}
               {w.match_reasons?.length > 0 && (
                 <div className="text-[10px] text-muted-foreground">
                   Why: {w.match_reasons.join(", ")}

@@ -1,52 +1,46 @@
 // src/utils/professionMap.ts
 
-const PROFESSION_MAP: Record<string, string> = {
-  // plumber
-  pipe: "plumber",
-  leak: "plumber",
-  water: "plumber",
-  sink: "plumber",
-
-  // electrician
-  socket: "electrician",
-  light: "electrician",
-  wiring: "electrician",
-  electricity: "electrician",
-
-  // roofer
-  roof: "roofer",
-  tiles: "roofer",
-
-  // carpenter
-  wood: "carpenter",
-  furniture: "carpenter",
-  door: "carpenter",
-
-  // cleaner
-  clean: "cleaner",
-  cleaning: "cleaner",
-
-  // painter
-  paint: "painter",
-  wall: "painter",
-
-  // tiler
-  tile: "tiler",
-  bathroom: "tiler",
-
-  // helper
-  move: "helper",
-  carry: "helper",
+const PROFESSION_MAP: Record<string, string[]> = {
+  plumber: ["pipe", "leak", "water", "sink", "drain"],
+  electrician: ["socket", "light", "wiring", "electricity"],
+  roofer: ["roof", "tiles", "leak roof"],
+  carpenter: ["wood", "furniture", "door"],
+  painter: ["paint", "wall"],
+  tiler: ["tile", "bathroom"],
+  cleaner: ["clean", "cleaning"],
+  helper: ["move", "carry"],
+  mason: ["brick", "cement"],
+  gardener: ["garden", "grass"],
+  hvac: ["ac", "heating"],
+  mechanic: ["car", "engine"],
+  welder: ["weld", "metal"],
+  plasterer: ["plaster"],
+  glazier: ["glass", "window"],
+  installer: ["install"],
+  remover: ["remove"],
+  decorator: ["decorate"],
+  security: ["alarm", "camera"],
+  pest_control: ["pest", "insects"]
 };
 
-export function detectProfession(input: string): string | null {
+export function detectProfession(input: string) {
   const text = input.toLowerCase();
 
-  for (const key in PROFESSION_MAP) {
-    if (text.includes(key)) {
-      return PROFESSION_MAP[key];
+  let matches: string[] = [];
+
+  for (const role in PROFESSION_MAP) {
+    for (const keyword of PROFESSION_MAP[role]) {
+      if (text.includes(keyword)) {
+        matches.push(role);
+        break;
+      }
     }
   }
 
-  return null;
+  const unique = [...new Set(matches)];
+
+  return {
+    profession: unique[0] || null,
+    suggestions: unique.slice(0, 2)
+  };
 }

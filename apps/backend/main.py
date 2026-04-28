@@ -26,6 +26,13 @@ candidates_db = [
     {"id":9,"name":"Ahmet Kaya","role":"helper","languages":["tr"],"skill":2,"location":"berlin","availability":["2026-04-10"],"rating":4.1},
     {"id":10,"name":"Sofia Rossi","role":"cleaner","languages":["en"],"skill":5,"location":"hamburg","availability":["2026-04-20"],"rating":4.9},
     {"id":11,"name":"David Klein","role":"electrician","languages":["de"],"skill":3,"location":"berlin","availability":["2026-04-13"],"rating":4.3},
+    {"id":12,"name":"Lukas Schmidt","role":"roofer","languages":["de"],"skill":4,"location":"munich","availability":["2026-04-16"],"rating":4.6},
+    {"id":13,"name":"Sergey Ivanov","role":"plumber","languages":["ru"],"skill":3,"location":"hamburg","availability":["2026-04-17"],"rating":4.2},
+    {"id":14,"name":"Fatma Demir","role":"cleaner","languages":["tr","de"],"skill":4,"location":"berlin","availability":["2026-04-19"],"rating":4.7},
+    {"id":15,"name":"Jan Kowalski","role":"carpenter","languages":["pl"],"skill":5,"location":"munich","availability":["2026-04-21"],"rating":4.8},
+    {"id":16,"name":"Oleksii Bondar","role":"tiler","languages":["ua"],"skill":4,"location":"hamburg","availability":["2026-04-22"],"rating":4.6},
+    {"id":17,"name":"Marco Bianchi","role":"painter","languages":["en"],"skill":3,"location":"berlin","availability":["2026-04-23"],"rating":4.4},
+    {"id":18,"name":"Thomas Weber","role":"roofer","languages":["de"],"skill":5,"location":"munich","availability":["2026-04-24"],"rating":4.9},
 ]
 
 # 🧠 DATE MATCH
