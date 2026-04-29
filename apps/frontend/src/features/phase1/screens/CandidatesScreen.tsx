@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 
 import { Button } from "@/components/ui/button";
@@ -47,86 +47,19 @@ export const CandidatesScreen = () => {
     autoSelectedRef.current = false;
   }, [activeRole, selectedLang, selectedLocation]);
 
-  // 🔥 AVAILABILITY STATUS
-  const getAvailabilityStatus = (worker: any) => {
-    if (!setup.startDate) return { label: "Unknown", color: "text-gray-500" };
+  // 🔥 availability
+  const getAvailability = (worker: any) => {
+    if (!setup.startDate) return "unknown";
 
-    if (worker.availability?.includes(setup.startDate)) {
-      return { label: "Available now", color: "text-green-600" };
-    }
+    if (worker.availability?.includes(setup.startDate)) return "now";
 
     const future = worker.availability?.some((d: string) => d > setup.startDate);
+    if (future) return "later";
 
-    if (future) {
-      return { label: "Available later", color: "text-yellow-600" };
-    }
-
-    return { label: "Not available", color: "text-red-500" };
+    return "none";
   };
 
-  // 🧠 BEST VS OTHERS
-  const getComparisonInsight = (list: any[]) => {
-    if (!list || list.length < 2) return null;
-
-    const best = list[0];
-    const second = list[1];
-
-    const insights = [];
-
-    if (best.skill > second.skill) insights.push("Higher skill");
-    if (best.rating > second.rating) insights.push("Better rating");
-    if ((best.match_score || 0) > (second.match_score || 0)) insights.push("Top match score");
-
-    return insights;
-  };
-
-  // 🧠 PER CARD REASON
-  const getCardReason = (worker: any, best: any) => {
-    const reasons = [];
-
-    if (worker.id === best?.id) {
-      reasons.push("Best fit for your job");
-    } else {
-      if (worker.skill > best.skill) reasons.push("Higher skill but weaker match");
-      if ((worker.match_score || 0) < (best.match_score || 0)) reasons.push("Lower match score");
-    }
-
-    return reasons;
-  };
-
-  // 🚀 AI RECOMMENDATION (CORE FEATURE)
-  const getAIRecommendation = (list: any[]) => {
-    if (!list || list.length === 0) return null;
-
-    const best = list[0];
-    const status = getAvailabilityStatus(best);
-
-    if (status.label === "Available now") {
-      return {
-        type: "choose_now",
-        text: "Best candidate is available now. Recommended to proceed immediately.",
-      };
-    }
-
-    const betterLater = list.find((c) => {
-      const s = getAvailabilityStatus(c);
-      return s.label === "Available later" && c.skill >= best.skill;
-    });
-
-    if (betterLater) {
-      return {
-        type: "wait",
-        text: "A stronger candidate is available later. You may wait for better quality.",
-      };
-    }
-
-    return {
-      type: "fallback",
-      text: "No perfect match available now. Consider selecting best available option.",
-    };
-  };
-
-  // 🚀 FETCH
+  // 🚀 fetch
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate || !activeRole) return;
@@ -147,17 +80,22 @@ export const CandidatesScreen = () => {
         // strict role
         list = list.filter((c: any) => c.role === activeRole);
 
-        // frontend safety
+        // filters
         if (selectedLang) {
-          list = list.filter((c: any) => c.languages.includes(selectedLang));
+          list = list.filter((c: any) =>
+            c.languages.includes(selectedLang)
+          );
         }
 
         if (selectedLocation) {
-          list = list.filter((c: any) => c.location === selectedLocation);
+          list = list.filter(
+            (c: any) => c.location === selectedLocation
+          );
         }
 
         const sorted = list.sort(
-          (a: any, b: any) => (b.match_score || 0) - (a.match_score || 0)
+          (a: any, b: any) =>
+            (b.match_score || 0) - (a.match_score || 0)
         );
 
         setCandidates(sorted);
@@ -188,7 +126,7 @@ export const CandidatesScreen = () => {
           autoSelectedRef.current = true;
         }
 
-      } catch (err: any) {
+      } catch (err) {
         setCandidates([]);
         setCount(0);
       } finally {
@@ -199,10 +137,19 @@ export const CandidatesScreen = () => {
     fetchCandidates();
   }, [setup.startDate, activeRole, selectedLang, selectedLocation]);
 
-  const handleSelectLeader = (worker: any) => {
-    const id = String(worker.id);
+  // 🧠 disable filter buttons if no candidate exists
+  const availableLangs = useMemo(() => {
+    return new Set(candidates.flatMap((c) => c.languages));
+  }, [candidates]);
 
-    if (id === String(selectedCandidateId)) return;
+  const availableLocations = useMemo(() => {
+    return new Set(candidates.map((c) => c.location));
+  }, [candidates]);
+
+  const handleSelectLeader = (worker: any) => {
+    if (getAvailability(worker) === "none") return;
+
+    const id = String(worker.id);
 
     if (teamMemberIds.includes(id)) {
       toggleTeamMember(id);
@@ -212,7 +159,14 @@ export const CandidatesScreen = () => {
     setSelectedCandidate(worker);
   };
 
-  const recommendation = getAIRecommendation(candidates);
+  const handleToggleTeam = (worker: any) => {
+    const id = String(worker.id);
+
+    if (id === selectedCandidateId) return;
+    if (getAvailability(worker) === "none") return;
+
+    toggleTeamMember(id);
+  };
 
   return (
     <div className="space-y-4 pb-28 max-w-md mx-auto">
@@ -221,7 +175,7 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Choose specialist"
-        subtitle="AI-driven decision support"
+        subtitle="Strict + controlled selection"
         onBack={() => setStep("setup")}
       />
 
@@ -233,33 +187,38 @@ export const CandidatesScreen = () => {
         {count} specialists found
       </div>
 
-      {/* 🧠 AI RECOMMENDATION */}
-      {recommendation && (
-        <div className="text-xs bg-blue-50 p-3 rounded-lg text-blue-700">
-          {recommendation.text}
-        </div>
-      )}
-
-      {/* 🧠 WHY BEST */}
-      {candidates.length > 1 && (
-        <div className="text-xs bg-muted p-3 rounded-lg">
-          <div className="font-medium">Why this is best:</div>
-          {getComparisonInsight(candidates)?.map((r, i) => (
-            <div key={i}>• {r}</div>
-          ))}
-        </div>
-      )}
-
-      {/* FILTERS */}
-      <div className="flex gap-2 overflow-x-auto">
-        {roles.map((r) => (
+      {/* 🌍 LANGUAGE FILTER */}
+      <div className="flex gap-2">
+        {languages.map((l) => (
           <Button
-            key={r}
+            key={l}
             size="sm"
-            variant={activeRole === r ? "default" : "outline"}
-            onClick={() => setManualRole(r)}
+            disabled={!availableLangs.has(l)}
+            variant={selectedLang === l ? "default" : "outline"}
+            onClick={() =>
+              setSelectedLang(selectedLang === l ? "" : l)
+            }
           >
-            {r}
+            {l.toUpperCase()}
+          </Button>
+        ))}
+      </div>
+
+      {/* 📍 LOCATION FILTER */}
+      <div className="flex gap-2">
+        {locations.map((loc) => (
+          <Button
+            key={loc}
+            size="sm"
+            disabled={!availableLocations.has(loc)}
+            variant={selectedLocation === loc ? "default" : "outline"}
+            onClick={() =>
+              setSelectedLocation(
+                selectedLocation === loc ? "" : loc
+              )
+            }
+          >
+            {loc}
           </Button>
         ))}
       </div>
@@ -267,13 +226,18 @@ export const CandidatesScreen = () => {
       {/* LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
+
           {candidates.map((w, i) => {
-            const isLead = String(w.id) === String(selectedCandidateId);
-            const status = getAvailabilityStatus(w);
-            const reasons = getCardReason(w, candidates[0]);
+            const id = String(w.id);
+            const isLead = id === selectedCandidateId;
+            const isTeam = teamMemberIds.includes(id);
+
+            const availability = getAvailability(w);
+
+            const disabled = availability === "none";
 
             return (
-              <div key={w.id} className="space-y-1">
+              <div key={id} className="space-y-1">
 
                 {i === 0 && (
                   <div className="text-xs text-green-600">
@@ -282,8 +246,13 @@ export const CandidatesScreen = () => {
                 )}
 
                 <div
-                  onClick={() => handleSelectLeader(w)}
-                  className="cursor-pointer"
+                  onClick={() => !disabled && handleSelectLeader(w)}
+                  className={`
+                    cursor-pointer rounded-xl
+                    ${isLead ? "border-2 border-blue-600" : ""}
+                    ${isTeam ? "border-2 border-dashed border-purple-500" : ""}
+                    ${disabled ? "opacity-40 cursor-not-allowed" : ""}
+                  `}
                 >
                   <CandidateCard
                     worker={w}
@@ -291,15 +260,25 @@ export const CandidatesScreen = () => {
                   />
                 </div>
 
-                <div className={`text-xs pl-2 ${status.color}`}>
-                  {status.label}
+                {/* availability */}
+                <div className="text-xs pl-2">
+                  {availability === "now" && "🟢 Available now"}
+                  {availability === "later" && "🟡 Available later"}
+                  {availability === "none" && "🔴 Not available"}
                 </div>
 
-                {reasons.map((r: string, idx: number) => (
-                  <div key={idx} className="text-[11px] text-muted-foreground pl-2">
-                    • {r}
+                {/* team button */}
+                {!isLead && !disabled && (
+                  <div className="pl-2">
+                    <Button
+                      size="sm"
+                      variant={isTeam ? "default" : "outline"}
+                      onClick={() => handleToggleTeam(w)}
+                    >
+                      {isTeam ? "Remove" : "Add to team"}
+                    </Button>
                   </div>
-                ))}
+                )}
 
               </div>
             );
@@ -307,6 +286,7 @@ export const CandidatesScreen = () => {
         </div>
       )}
 
+      {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
           className="w-full"
