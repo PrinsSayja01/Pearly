@@ -5,8 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-import { usePhase1Store } from "../store";
-import { detectProfession } from "@/utils/professionMap";
+import { usePhase1Store, detectProfession } from "../store";
 import { StepHeader } from "../components/StepHeader";
 
 export const AIInputScreen = () => {
@@ -19,6 +18,7 @@ export const AIInputScreen = () => {
     suggestions = [],
   } = usePhase1Store();
 
+  // 🔥 DETECT PROFESSION (REAL FIX)
   useEffect(() => {
     if (taskInput.trim().length < 3) return;
 
@@ -37,10 +37,10 @@ export const AIInputScreen = () => {
       <Textarea
         value={taskInput}
         onChange={(e) => setTaskInput(e.target.value)}
-        placeholder="Fix pipe leak, install light, clean apartment..."
+        placeholder="Fix roof leak, install light, clean apartment..."
       />
 
-      {/* ✅ AI DETECTION RESULT */}
+      {/* AI RESULT */}
       {detectedProfession && (
         <Card>
           <CardContent className="flex flex-wrap gap-2 p-4">
@@ -63,6 +63,7 @@ export const AIInputScreen = () => {
       >
         Continue <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
+
     </div>
   );
 };

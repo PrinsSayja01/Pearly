@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-/* 🔥 STRICT PROFESSION DETECTION */
+/* 🔥 STRICT PROFESSION DETECTION (FINAL) */
 export const detectProfession = (text: string) => {
   const input = text.toLowerCase();
 
@@ -16,7 +16,7 @@ export const detectProfession = (text: string) => {
   if (/(paint|wall color)/.test(input))
     return { profession: "painter", suggestions: ["tiler"] };
 
-  if (/(tile|floor tile)/.test(input))
+  if (/(tile|floor)/.test(input))
     return { profession: "tiler", suggestions: ["painter"] };
 
   if (/(clean|dust|wash)/.test(input))
@@ -85,6 +85,7 @@ export const usePhase1Store = create<Phase1State>((set) => ({
   teamMemberIds: [],
 
   setStep: (step) => set({ step }),
+
   setTaskInput: (taskInput) => set({ taskInput }),
 
   setDetected: (profession, suggestions) =>
