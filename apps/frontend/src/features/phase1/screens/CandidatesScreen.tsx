@@ -29,10 +29,12 @@ export const CandidatesScreen = () => {
 
   const autoSelectedRef = useRef(false);
 
+  // 🔁 Reset auto-select when profession changes
   useEffect(() => {
     autoSelectedRef.current = false;
   }, [detectedProfession]);
 
+  // 🚀 FETCH DATA
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate) return;
@@ -48,28 +50,30 @@ export const CandidatesScreen = () => {
 
         const list = res.data?.candidates || [];
 
-        // ✅ STRICT ROLE FILTER (frontend safety)
-        const strictlyFiltered = detectedProfession
+        // ✅ STRICT FILTER (extra safety)
+        const filtered = detectedProfession
           ? list.filter((c: any) => c.role === detectedProfession)
           : list;
 
         // ✅ SORT AFTER FILTER
-        const sorted = [...strictlyFiltered].sort(
+        const sorted = [...filtered].sort(
           (a, b) => (b.match_score || 0) - (a.match_score || 0)
         );
 
         setCandidates(sorted);
         setCount(sorted.length);
 
+        // store for next screens
         localStorage.setItem("candidates", JSON.stringify(sorted));
 
-        // 🤖 AUTO SELECT
+        // 🤖 AUTO SELECT BEST (ONLY ONCE)
         if (!autoSelectedRef.current && sorted.length > 0) {
           const best = sorted[0];
 
           selectCandidate(String(best.id));
           setSelectedCandidate(best);
 
+          // 👷 AI TEAM BUILD (ONLY IF EMPTY)
           if (teamMemberIds.length === 0 && sorted.length > 1) {
             const smartTeam = buildSmartTeam({
               candidates: sorted,
@@ -106,6 +110,7 @@ export const CandidatesScreen = () => {
 
     if (id === String(selectedCandidateId)) return;
 
+    // remove from team if already added
     if (teamMemberIds.includes(id)) {
       toggleTeamMember(id);
     }
@@ -114,10 +119,11 @@ export const CandidatesScreen = () => {
     setSelectedCandidate(worker);
   };
 
-  // 👷 TEAM TOGGLE
+  // 👷 TOGGLE TEAM MEMBER
   const handleToggleMember = (id: number | string) => {
     const strId = String(id);
 
+    // prevent leader duplication
     if (strId === String(selectedCandidateId)) return;
 
     toggleTeamMember(strId);
@@ -129,15 +135,30 @@ export const CandidatesScreen = () => {
       <StepHeader
         step={3}
         total={6}
-        title="Build your team"
-        subtitle="Strict role matching + AI team"
+        title="Choose specialist"
+        subtitle="Strict role matching"
+        onBack={() => setStep("setup")}
       />
 
       <div className="text-sm font-medium">
         {count} specialists found
       </div>
 
-      {/* LIST */}
+      {/* ⏳ LOADING */}
+      {loading && (
+        <div className="text-center text-sm text-muted-foreground">
+          Loading candidates...
+        </div>
+      )}
+
+      {/* ❌ EMPTY */}
+      {!loading && candidates.length === 0 && (
+        <div className="text-center text-sm text-muted-foreground">
+          No matching professionals found
+        </div>
+      )}
+
+      {/* ✅ LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
 
@@ -149,12 +170,14 @@ export const CandidatesScreen = () => {
             return (
               <div key={id} className="space-y-1">
 
+                {/* 🎯 BEST MATCH */}
                 {i === 0 && (
                   <div className="text-xs text-green-600">
                     🎯 Best match
                   </div>
                 )}
 
+                {/* 👑 SELECT LEADER */}
                 <div
                   onClick={() => handleSelectLeader(w)}
                   className="cursor-pointer"
@@ -166,6 +189,7 @@ export const CandidatesScreen = () => {
                   />
                 </div>
 
+                {/* 👷 TEAM BUTTON */}
                 {!isLead && (
                   <div className="pl-2">
                     <Button
@@ -185,12 +209,7 @@ export const CandidatesScreen = () => {
         </div>
       )}
 
-      {candidates.length === 0 && !loading && (
-        <div className="text-center text-sm text-muted-foreground">
-          No matching professionals found
-        </div>
-      )}
-
+      {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
           className="w-full"
