@@ -32,7 +32,10 @@ export const CandidatesScreen = () => {
   } = usePhase1Store();
 
   const [manualRole, setManualRole] = useState("");
-  const [selectedLang, setSelectedLang] = useState("");
+
+  // ✅ FIX: MULTI LANGUAGE
+  const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
+
   const [selectedLocation, setSelectedLocation] = useState("");
 
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -45,7 +48,16 @@ export const CandidatesScreen = () => {
 
   useEffect(() => {
     autoSelectedRef.current = false;
-  }, [activeRole, selectedLang, selectedLocation]);
+  }, [activeRole, selectedLangs, selectedLocation]);
+
+  // 🔁 toggle multi lang
+  const toggleLang = (lang: string) => {
+    setSelectedLangs((prev) =>
+      prev.includes(lang)
+        ? prev.filter((l) => l !== lang)
+        : [...prev, lang]
+    );
+  };
 
   // 🔥 availability
   const getAvailability = (worker: any) => {
@@ -70,7 +82,10 @@ export const CandidatesScreen = () => {
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
             role: activeRole,
-            language: selectedLang || undefined,
+            // ✅ SEND MULTIPLE LANGS
+            language: selectedLangs.length
+              ? selectedLangs.join(",")
+              : undefined,
             location: selectedLocation || undefined,
           },
         });
@@ -80,13 +95,16 @@ export const CandidatesScreen = () => {
         // strict role
         list = list.filter((c: any) => c.role === activeRole);
 
-        // filters
-        if (selectedLang) {
+        // ✅ OR LANGUAGE FILTER (frontend safety)
+        if (selectedLangs.length > 0) {
           list = list.filter((c: any) =>
-            c.languages.includes(selectedLang)
+            c.languages.some((l: string) =>
+              selectedLangs.includes(l)
+            )
           );
         }
 
+        // location
         if (selectedLocation) {
           list = list.filter(
             (c: any) => c.location === selectedLocation
@@ -135,9 +153,9 @@ export const CandidatesScreen = () => {
     };
 
     fetchCandidates();
-  }, [setup.startDate, activeRole, selectedLang, selectedLocation]);
+  }, [setup.startDate, activeRole, selectedLangs, selectedLocation]);
 
-  // 🧠 disable filter buttons if no candidate exists
+  // 🧠 dynamic availability filters
   const availableLangs = useMemo(() => {
     return new Set(candidates.flatMap((c) => c.languages));
   }, [candidates]);
@@ -175,7 +193,7 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Choose specialist"
-        subtitle="Strict + controlled selection"
+        subtitle="Strict + OR language filtering"
         onBack={() => setStep("setup")}
       />
 
@@ -187,17 +205,15 @@ export const CandidatesScreen = () => {
         {count} specialists found
       </div>
 
-      {/* 🌍 LANGUAGE FILTER */}
-      <div className="flex gap-2">
+      {/* 🌍 LANGUAGE FILTER (MULTI) */}
+      <div className="flex gap-2 flex-wrap">
         {languages.map((l) => (
           <Button
             key={l}
             size="sm"
             disabled={!availableLangs.has(l)}
-            variant={selectedLang === l ? "default" : "outline"}
-            onClick={() =>
-              setSelectedLang(selectedLang === l ? "" : l)
-            }
+            variant={selectedLangs.includes(l) ? "default" : "outline"}
+            onClick={() => toggleLang(l)}
           >
             {l.toUpperCase()}
           </Button>
@@ -226,14 +242,12 @@ export const CandidatesScreen = () => {
       {/* LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
-
           {candidates.map((w, i) => {
             const id = String(w.id);
             const isLead = id === selectedCandidateId;
             const isTeam = teamMemberIds.includes(id);
 
             const availability = getAvailability(w);
-
             const disabled = availability === "none";
 
             return (
@@ -254,20 +268,15 @@ export const CandidatesScreen = () => {
                     ${disabled ? "opacity-40 cursor-not-allowed" : ""}
                   `}
                 >
-                  <CandidateCard
-                    worker={w}
-                    selected={isLead}
-                  />
+                  <CandidateCard worker={w} selected={isLead} />
                 </div>
 
-                {/* availability */}
                 <div className="text-xs pl-2">
                   {availability === "now" && "🟢 Available now"}
                   {availability === "later" && "🟡 Available later"}
                   {availability === "none" && "🔴 Not available"}
                 </div>
 
-                {/* team button */}
                 {!isLead && !disabled && (
                   <div className="pl-2">
                     <Button
