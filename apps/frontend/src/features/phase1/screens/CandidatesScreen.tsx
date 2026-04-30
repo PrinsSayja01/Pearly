@@ -33,9 +33,8 @@ export const CandidatesScreen = () => {
 
   const [manualRole, setManualRole] = useState("");
 
-  // ✅ FIX: MULTI LANGUAGE
+  // ✅ MULTI LANGUAGE
   const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
-
   const [selectedLocation, setSelectedLocation] = useState("");
 
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -59,7 +58,7 @@ export const CandidatesScreen = () => {
     );
   };
 
-  // 🔥 availability
+  // 🔥 availability logic
   const getAvailability = (worker: any) => {
     if (!setup.startDate) return "unknown";
 
@@ -71,7 +70,7 @@ export const CandidatesScreen = () => {
     return "none";
   };
 
-  // 🚀 fetch
+  // 🚀 FETCH
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!setup.startDate || !activeRole) return;
@@ -82,17 +81,15 @@ export const CandidatesScreen = () => {
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
             role: activeRole,
-            // ✅ SEND MULTIPLE LANGS
-            language: selectedLangs.length
-              ? selectedLangs.join(",")
-              : undefined,
+            // ✅ FIX: send array, not string
+            languages: selectedLangs.length ? selectedLangs : undefined,
             location: selectedLocation || undefined,
           },
         });
 
         let list = res.data?.candidates || [];
 
-        // strict role
+        // ✅ HARD ROLE FILTER
         list = list.filter((c: any) => c.role === activeRole);
 
         // ✅ OR LANGUAGE FILTER (frontend safety)
@@ -104,14 +101,15 @@ export const CandidatesScreen = () => {
           );
         }
 
-        // location
+        // ✅ LOCATION FILTER
         if (selectedLocation) {
           list = list.filter(
             (c: any) => c.location === selectedLocation
           );
         }
 
-        const sorted = list.sort(
+        // ✅ SORT AFTER FILTER
+        const sorted = [...list].sort(
           (a: any, b: any) =>
             (b.match_score || 0) - (a.match_score || 0)
         );
@@ -121,6 +119,7 @@ export const CandidatesScreen = () => {
 
         localStorage.setItem("candidates", JSON.stringify(sorted));
 
+        // 🤖 AUTO SELECT
         if (!autoSelectedRef.current && sorted.length > 0) {
           const best = sorted[0];
 
@@ -145,6 +144,7 @@ export const CandidatesScreen = () => {
         }
 
       } catch (err) {
+        console.error("API error", err);
         setCandidates([]);
         setCount(0);
       } finally {
@@ -155,7 +155,7 @@ export const CandidatesScreen = () => {
     fetchCandidates();
   }, [setup.startDate, activeRole, selectedLangs, selectedLocation]);
 
-  // 🧠 dynamic availability filters
+  // 🧠 dynamic filter availability
   const availableLangs = useMemo(() => {
     return new Set(candidates.flatMap((c) => c.languages));
   }, [candidates]);
@@ -205,7 +205,7 @@ export const CandidatesScreen = () => {
         {count} specialists found
       </div>
 
-      {/* 🌍 LANGUAGE FILTER (MULTI) */}
+      {/* 🌍 LANGUAGE FILTER */}
       <div className="flex gap-2 flex-wrap">
         {languages.map((l) => (
           <Button
@@ -262,9 +262,9 @@ export const CandidatesScreen = () => {
                 <div
                   onClick={() => !disabled && handleSelectLeader(w)}
                   className={`
-                    cursor-pointer rounded-xl
-                    ${isLead ? "border-2 border-blue-600" : ""}
-                    ${isTeam ? "border-2 border-dashed border-purple-500" : ""}
+                    cursor-pointer rounded-xl border
+                    ${isLead ? "border-blue-600 shadow-md" : ""}
+                    ${isTeam ? "border-purple-500 border-dashed" : ""}
                     ${disabled ? "opacity-40 cursor-not-allowed" : ""}
                   `}
                 >
