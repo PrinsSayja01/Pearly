@@ -32,8 +32,6 @@ export const CandidatesScreen = () => {
   } = usePhase1Store();
 
   const [manualRole, setManualRole] = useState("");
-
-  // ✅ MULTI LANGUAGE
   const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
   const [selectedLocation, setSelectedLocation] = useState("");
 
@@ -44,12 +42,13 @@ export const CandidatesScreen = () => {
   const autoSelectedRef = useRef(false);
 
   const activeRole = manualRole || detectedProfession;
+  const preferredLang = selectedLangs[0]; // ⭐ priority
 
   useEffect(() => {
     autoSelectedRef.current = false;
   }, [activeRole, selectedLangs, selectedLocation]);
 
-  // 🔁 toggle multi lang
+  // 🔁 toggle multi language
   const toggleLang = (lang: string) => {
     setSelectedLangs((prev) =>
       prev.includes(lang)
@@ -58,7 +57,7 @@ export const CandidatesScreen = () => {
     );
   };
 
-  // 🔥 availability logic
+  // 🔥 availability
   const getAvailability = (worker: any) => {
     if (!setup.startDate) return "unknown";
 
@@ -68,6 +67,38 @@ export const CandidatesScreen = () => {
     if (future) return "later";
 
     return "none";
+  };
+
+  // 🧠 AI explanation
+  const generateAIReason = (candidate: any, best: any) => {
+    const reasons = [];
+
+    if (candidate.id === best.id) {
+      reasons.push("Best overall match");
+    }
+
+    if (preferredLang && candidate.languages.includes(preferredLang)) {
+      reasons.push(`Speaks ${preferredLang.toUpperCase()}`);
+    }
+
+    if (candidate.skill >= 4) reasons.push("High skill");
+    if (candidate.rating >= 4.7) reasons.push("Top rated");
+
+    const availability = getAvailability(candidate);
+    if (availability === "now") reasons.push("Available now");
+    if (availability === "later") reasons.push("Available soon");
+
+    return reasons.join(" • ");
+  };
+
+  // 🧠 compare vs best
+  const compareWithBest = (candidate: any, best: any) => {
+    if (candidate.id === best.id) return "Top choice";
+
+    if (candidate.skill < best.skill) return "Lower skill than best";
+    if (candidate.rating < best.rating) return "Lower rating";
+
+    return "Alternative option";
   };
 
   // 🚀 FETCH
@@ -81,7 +112,6 @@ export const CandidatesScreen = () => {
         const res = await axios.get(`${API_URL}/candidates`, {
           params: {
             role: activeRole,
-            // ✅ FIX: send array, not string
             languages: selectedLangs.length ? selectedLangs : undefined,
             location: selectedLocation || undefined,
           },
@@ -89,10 +119,10 @@ export const CandidatesScreen = () => {
 
         let list = res.data?.candidates || [];
 
-        // ✅ HARD ROLE FILTER
+        // strict role
         list = list.filter((c: any) => c.role === activeRole);
 
-        // ✅ OR LANGUAGE FILTER (frontend safety)
+        // OR language
         if (selectedLangs.length > 0) {
           list = list.filter((c: any) =>
             c.languages.some((l: string) =>
@@ -101,25 +131,31 @@ export const CandidatesScreen = () => {
           );
         }
 
-        // ✅ LOCATION FILTER
+        // location
         if (selectedLocation) {
-          list = list.filter(
-            (c: any) => c.location === selectedLocation
-          );
+          list = list.filter((c: any) => c.location === selectedLocation);
         }
 
-        // ✅ SORT AFTER FILTER
-        const sorted = [...list].sort(
-          (a: any, b: any) =>
-            (b.match_score || 0) - (a.match_score || 0)
-        );
+        // ⭐ priority sort
+        const sorted = [...list].sort((a: any, b: any) => {
+          const base = (b.match_score || 0) - (a.match_score || 0);
+
+          if (!preferredLang) return base;
+
+          const aPref = a.languages.includes(preferredLang);
+          const bPref = b.languages.includes(preferredLang);
+
+          if (aPref && !bPref) return -1;
+          if (!aPref && bPref) return 1;
+
+          return base;
+        });
 
         setCandidates(sorted);
         setCount(sorted.length);
 
         localStorage.setItem("candidates", JSON.stringify(sorted));
 
-        // 🤖 AUTO SELECT
         if (!autoSelectedRef.current && sorted.length > 0) {
           const best = sorted[0];
 
@@ -143,8 +179,7 @@ export const CandidatesScreen = () => {
           autoSelectedRef.current = true;
         }
 
-      } catch (err) {
-        console.error("API error", err);
+      } catch {
         setCandidates([]);
         setCount(0);
       } finally {
@@ -155,7 +190,6 @@ export const CandidatesScreen = () => {
     fetchCandidates();
   }, [setup.startDate, activeRole, selectedLangs, selectedLocation]);
 
-  // 🧠 dynamic filter availability
   const availableLangs = useMemo(() => {
     return new Set(candidates.flatMap((c) => c.languages));
   }, [candidates]);
@@ -193,7 +227,7 @@ export const CandidatesScreen = () => {
         step={3}
         total={6}
         title="Choose specialist"
-        subtitle="Strict + OR language filtering"
+        subtitle="Smart AI matching"
         onBack={() => setStep("setup")}
       />
 
@@ -205,7 +239,7 @@ export const CandidatesScreen = () => {
         {count} specialists found
       </div>
 
-      {/* 🌍 LANGUAGE FILTER */}
+      {/* LANG */}
       <div className="flex gap-2 flex-wrap">
         {languages.map((l) => (
           <Button
@@ -220,7 +254,7 @@ export const CandidatesScreen = () => {
         ))}
       </div>
 
-      {/* 📍 LOCATION FILTER */}
+      {/* LOCATION */}
       <div className="flex gap-2">
         {locations.map((loc) => (
           <Button
@@ -242,6 +276,7 @@ export const CandidatesScreen = () => {
       {/* LIST */}
       {!loading && candidates.length > 0 && (
         <div className="space-y-3">
+
           {candidates.map((w, i) => {
             const id = String(w.id);
             const isLead = id === selectedCandidateId;
@@ -249,6 +284,9 @@ export const CandidatesScreen = () => {
 
             const availability = getAvailability(w);
             const disabled = availability === "none";
+
+            const best = candidates[0];
+            const aiReason = generateAIReason(w, best);
 
             return (
               <div key={id} className="space-y-1">
@@ -269,6 +307,15 @@ export const CandidatesScreen = () => {
                   `}
                 >
                   <CandidateCard worker={w} selected={isLead} />
+                </div>
+
+                {/* 🧠 AI */}
+                <div className="text-xs text-muted-foreground pl-2">
+                  🧠 {aiReason}
+                </div>
+
+                <div className="text-[10px] text-gray-500 pl-2">
+                  {compareWithBest(w, best)}
                 </div>
 
                 <div className="text-xs pl-2">
@@ -292,10 +339,10 @@ export const CandidatesScreen = () => {
               </div>
             );
           })}
+
         </div>
       )}
 
-      {/* CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t">
         <Button
           className="w-full"
